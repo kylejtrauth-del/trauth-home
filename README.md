@@ -15,6 +15,13 @@
 
 When a new version is pushed here, Home Assistant shows **Update** on the add-on. Tap it. Your profiles, chores and notes are kept in the add-on's `/data` folder and included in Home Assistant backups.
 
+## British voice (Piper)
+
+1. **Settings → Add-ons → Add-on Store → Piper → Install**
+2. In Piper's **Configuration** tab, set the voice to `en_GB-alan-medium` → **Save** → **Start**
+3. **Settings → Devices & services**: accept the discovered **Wyoming Protocol** (Piper)
+4. In T.R.A.U.T.H., open **Settings → Voice source → The Green · British** and pick a voice
+
 ## What it connects to
 
 T.R.A.U.T.H. finds devices in Home Assistant automatically:
@@ -23,12 +30,11 @@ T.R.A.U.T.H. finds devices in Home Assistant automatically:
 |---|---|
 | Climate | the first `climate.*` entity (Honeywell T6 Pro via HomeKit) |
 | Cameras | every `camera.*` (Ring + Blink), Blink arm/disarm, motion-detection switches |
-| Security | SimpliSafe `alarm_control_panel`, door and motion sensors |
+| Security | SimpliSafe `alarm_control_panel`, door and motion sensors (any can be marked inactive) |
 | Garage | the garage entry door sensor |
 | TV | `media_player.*` + `remote.*` |
 | Lights | any `light.*` or smart-plug `switch.*` added later |
 | Calendar | any `calendar.*` (e.g. Google Calendar integration) |
 | House | low batteries, open or offline doors, chores, notes |
-| Finances | PIN-locked per profile (data connection coming) |
 
 Profiles (Kyle, Macy) are picked automatically from the Home Assistant user who is logged in.

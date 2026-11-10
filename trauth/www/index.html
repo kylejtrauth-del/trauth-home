@@ -286,8 +286,29 @@ function chooseVoice(){
   return gb[0]||voices[0];
 }
 const coreWrap=document.getElementById("coreWrap");
+const PIPER_VOICES=[["en_GB-alan-medium","Alan · English male"],["en_GB-northern_english_male-medium","Northern English male"],["en_GB-jenny_dioco-medium","Jenny · English female"],["en_GB-cori-high","Cori · English female"],["en_GB-alba-medium","Alba · Scottish female"],["en_GB-southern_english_female-low","Southern English female"]];
+function piperE(){return (typeof HA!=="undefined")&&(HA["tts.piper"]||Object.values(HA).find(s=>/^tts\..*piper/.test(s.entity_id)))||null}
+function useGreen(){return me&&me.voice.engine!=="device"&&!DEMO&&!!piperE()}
+const audioEl=new Audio();let audioUnlocked=false,speakSeq=0;
+addEventListener("pointerdown",()=>{if(audioUnlocked)return;audioUnlocked=true;try{audioEl.src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";audioEl.play().catch(()=>{})}catch(e){}});
+async function greenSpeak(text){
+  const seq=++speakSeq,tts=piperE();
+  try{
+    coreWrap.classList.add("speaking");try{speechSynthesis.cancel()}catch(_){}
+    const r=await fetch(API+"ha/tts_get_url",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({engine_id:tts.entity_id,message:text,options:{voice:me.voice.piper||"en_GB-alan-medium"}})});
+    if(!r.ok)throw new Error("tts "+r.status);
+    const j=await r.json();const path=j.path||new URL(j.url).pathname;
+    if(seq!==speakSeq)return;
+    audioEl.onended=audioEl.onerror=()=>coreWrap.classList.remove("speaking");
+    audioEl.src=API+"ha"+path.replace(/^\/api/,"");await audioEl.play();
+  }catch(e){coreWrap.classList.remove("speaking");if(seq===speakSeq)deviceSpeak(text)}
+}
 function speak(text,force){
-  if(!me||(!me.voice.on&&!force)) return;
+  if(!me||(!me.voice.on&&!force)||!text) return;
+  if(useGreen())return greenSpeak(text);
+  deviceSpeak(text);
+}
+function deviceSpeak(text){
   try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);const v=chooseVoice();if(v)u.voice=v;
     u.rate=me.voice.rate;u.pitch=me.voice.pitch;
     u.onstart=()=>coreWrap.classList.add("speaking");u.onend=u.onerror=()=>coreWrap.classList.remove("speaking");
@@ -463,9 +484,13 @@ function cams(){return dom("camera")}
 function alarms(){return dom("alarm_control_panel")}
 function mainAlarm(){return alarms().find(a=>!/blink/i.test(a.entity_id))||null}
 function blinkAlarm(){return alarms().find(a=>/blink/i.test(a.entity_id))||null}
-function doors(){return dom("binary_sensor").filter(s=>["door","garage_door","window","opening"].includes(s.attributes.device_class)||/_door$/.test(s.entity_id))}
+const DEFAULT_IGNORED_RE=/^binary_sensor\.house_.*_entry_(door|battery)$|^binary_sensor\.house_(keypad|keychain|panic_button)_battery$/;
+function isIgnored(id){return (appData.ignored||[]).includes(id)}
+function allDoors(){return dom("binary_sensor").filter(s=>["door","garage_door","window","opening"].includes(s.attributes.device_class)||/_door$/.test(s.entity_id))}
 function doorName(s){return nm(s).replace(/\s*Entry Door$/i,"").replace(/\s*Door$/i," door").replace(/door door/i,"door").trim()}
-function motionSensors(){return dom("binary_sensor").filter(s=>!/battery/i.test(s.entity_id)&&(s.attributes.device_class==="motion"||/_motion(_motion)?$/.test(s.entity_id)))}
+function doors(){return allDoors().filter(s=>!isIgnored(s.entity_id))}
+function allMotion(){return dom("binary_sensor").filter(s=>!/battery/i.test(s.entity_id)&&(s.attributes.device_class==="motion"||/_motion(_motion)?$/.test(s.entity_id)))}
+function motionSensors(){return allMotion().filter(s=>!isIgnored(s.entity_id))}
 function lightEnts(){return [...dom("light"),...dom("switch").filter(s=>!/motion|camera|siren|blink|ring/i.test(s.entity_id))]}
 function tvPlayer(){const m=dom("media_player");return m.find(x=>live(x)&&x.state!=="off")||m[0]||null}
 function tvRemote(){return dom("remote")[0]||null}
@@ -477,7 +502,7 @@ function lowBatteries(){
   const out=[];
   all().forEach(s=>{
     const isBatt=s.attributes.device_class==="battery"||/battery/i.test(s.entity_id);
-    if(!isBatt)return;
+    if(!isBatt||isIgnored(s.entity_id))return;
     if(s.entity_id.startsWith("sensor.")){const n=num(s.state);if(n!=null&&n<=20)out.push({name:nm(s).replace(/\s*Battery$/i,""),pct:n})}
     else if(s.entity_id.startsWith("binary_sensor.")&&s.state==="on")out.push({name:nm(s).replace(/\s*Battery$/i,""),pct:null});
   });
@@ -509,7 +534,7 @@ async function call(domain,service,payload){
 function persist(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
-    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvStyle:appData.tvStyle||"apple"};
+    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvStyle:appData.tvStyle||"apple",ignored:appData.ignored||[]};
     if(DEMO){try{localStorage.setItem("trauth.demo",JSON.stringify(payload))}catch(e){};return}
     try{await fetch(API+"data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})}catch(e){toast("Couldn't save settings")}
   },400);
@@ -560,8 +585,8 @@ function demoApply(domain,service,p){
 }
 
 /* ---------- Profiles ---------- */
-const MODULE_IDS=["lights","climate","cameras","security","garage","tv","calendar","house","finance"];
-function newProfile(id,name,theme,pin){return {id,name,theme,voice:{on:true,uri:"",rate:0.95,pitch:id==="kyle"?0.9:1.0},sfx:{on:true,vol:0.6},hidden:[],order:[...MODULE_IDS],style:"proper",pin}}
+const MODULE_IDS=["lights","climate","cameras","security","garage","tv","calendar","house"];
+function newProfile(id,name,theme,pin){return {id,name,theme,voice:{on:true,uri:"",rate:0.95,pitch:id==="kyle"?0.9:1.0,engine:"auto",piper:id==="macy"?"en_GB-jenny_dioco-medium":"en_GB-alan-medium"},sfx:{on:true,vol:0.6},hidden:[],order:[...MODULE_IDS],style:"proper",pin}}
 const DEFAULT_PROFILES={kyle:newProfile("kyle","Kyle","arc","1234"),macy:newProfile("macy","Macy","violet","5678")};
 let profiles=JSON.parse(JSON.stringify(DEFAULT_PROFILES));
 let me=null;
@@ -569,6 +594,7 @@ function normalizeProfiles(){
   Object.values(profiles).forEach(p=>{
     const d=newProfile(p.id||"x",p.name||"Guest","arc","0000");
     for(const k in d)if(p[k]==null)p[k]=d[k];
+    for(const k in d.voice)if(p.voice[k]==null)p.voice[k]=d.voice[k];
     p.order=p.order.filter(id=>MODULE_IDS.includes(id));MODULE_IDS.forEach(id=>{if(!p.order.includes(id))p.order.push(id)});
   });
 }
@@ -594,7 +620,6 @@ const I={
   finance:'<svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 6.5c-1-1.2-2.8-2-5-2-2.8 0-4.5 1.4-4.5 3.3 0 4.6 9.5 2.6 9.5 7.4 0 2-1.9 3.3-5 3.3-2.3 0-4.2-.9-5.2-2.2"/></svg>',
   lock:'<svg viewBox="0 0 24 24" fill="none" stroke-width="3"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
 };
-const fin={unlocked:false,pin:"",timer:null};
 function alertCount(){return openDoors().length+offlineDoors().length+lowBatteries().length+(appData.tasks||[]).filter(t=>!t.done&&t.cls==="late").length}
 const modules=[
   {id:"lights",label:"Lights",icon:I.lights,val:()=>{const l=lightEnts();return l.length?`${l.filter(x=>x.state==="on").length} on`:"None yet"}},
@@ -605,7 +630,6 @@ const modules=[
   {id:"tv",label:"TV",icon:I.tv,val:()=>{const p=tvPlayer();return p?(p.state==="off"?"Off":"On"):"—"}},
   {id:"calendar",label:"Calendar",icon:I.calendar,val:()=>calendars().length?"This week":"Connect"},
   {id:"house",label:"House",icon:I.house,val:()=>{const n=alertCount();return n?`${n} alert${n>1?"s":""}`:"All good"}},
-  {id:"finance",label:"Finances",icon:I.finance,locked:true,val:()=>fin.unlocked?"Unlocked":"Locked"},
 ];
 
 /* ---------- Rings ---------- */
@@ -721,7 +745,7 @@ function showPicker(){
 }
 document.getElementById("avatars").addEventListener("click",e=>{const b=e.target.closest(".av");if(b)selectProfile(b.dataset.p)});
 function selectProfile(id,quiet){
-  me=profiles[id];lockFinance();applyTheme(me.theme);buildSats();
+  me=profiles[id];applyTheme(me.theme);buildSats();
   picker.classList.add("hide");
   if(!quiet){chime(660);setTimeout(()=>say("boot"),250)}
 }
@@ -746,7 +770,7 @@ function closePanel(){
   panel.classList.remove("open");scrim.classList.remove("show");panel.setAttribute("aria-hidden","true");
   satEls.forEach(el=>el.classList.remove("active"));links.querySelectorAll("line").forEach(l=>l.classList.remove("hot"));
   clearInterval(camTimer);
-  if(current==="finance")lockFinance();current=null;refresh();
+  current=null;refresh();
 }
 document.getElementById("closeBtn").onclick=()=>closePanel();scrim.onclick=()=>closePanel();
 addEventListener("keydown",e=>{if(e.key==="Escape"&&current)closePanel()});
@@ -758,7 +782,6 @@ function sayOpen(id){
   if(id==="security"){const a=mainAlarm();return a&&say("open_security",{state:alarmSpoken(a.state)})}
   if(id==="garage"){const g=garageDoor();return say("open_garage",{state:!g?"unknown":g.state==="on"?"open":g.state==="off"?"closed":"offline"})}
   if(id==="house"){const l=(appData.tasks||[]).find(t=>!t.done&&t.cls==="late");return l?say("open_house_late",{task:l.t.toLowerCase()}):say("open_house_ok")}
-  if(id==="finance")return say(fin.unlocked?"open_fin_open":"open_fin_locked");
   return say("open_"+id);
 }
 
@@ -811,7 +834,11 @@ const views={
       <div class="meta" style="margin-bottom:8px">Personality</div>
       <div class="chips" style="margin-bottom:16px"><button class="chip ${me.style==="proper"?"on":""}" data-style="proper">Proper butler</button><button class="chip ${me.style==="cheeky"?"on":""}" data-style="cheeky">Cheeky</button></div>
       <div class="row"><div><div class="name">Spoken responses</div><div class="meta">Talks when you tap an orb</div></div><button class="tog ${me.voice.on?"on":""}" data-set="voice"></button></div>
-      <div class="meta" style="margin:14px 0 8px">Voice</div>
+      <div class="meta" style="margin:14px 0 8px">Voice source</div>
+      <div class="chips" style="margin-bottom:6px"><button class="chip ${me.voice.engine!=="device"?"on":""}" data-engine="auto">The Green · British</button><button class="chip ${me.voice.engine==="device"?"on":""}" data-engine="device">This device</button></div>
+      ${me.voice.engine!=="device"?(piperE()?`<div class="meta" style="margin:10px 0 8px">British voice</div><select class="field" id="sPiper">${PIPER_VOICES.map(([v,l])=>`<option value="${v}" ${me.voice.piper===v?"selected":""}>${l}</option>`).join("")}</select><p class="meta">Same voice on every phone and tablet. Speed and pitch below only apply to "This device".</p>`
+        :`<p class="meta" style="color:var(--warn)">Piper isn't set up on the Green yet, so this device's voice is used for now.</p>`):""}
+      <div class="meta" style="margin:14px 0 8px">Device voice</div>
       <select class="field" id="sVoice"><option value="">Automatic (best British voice)</option>${vOpts}</select>
       <div class="slabel"><span>Speed</span><span id="rateV">${me.voice.rate.toFixed(2)}×</span></div>
       <input type="range" min="0.7" max="1.4" step="0.05" value="${me.voice.rate}" data-range="rate">
@@ -829,8 +856,6 @@ const views={
     <div class="meta" style="margin:-2px 0 10px">Tip: press and drag any orb on the main screen to rearrange the ring.</div>
     <div class="card">${me.order.map(id=>modules.find(m=>m.id===id)).map(m=>`<div class="row" style="padding:7px 0"><div class="name" style="font-size:15px">${m.label}</div><button class="tog ${me.hidden.includes(m.id)?"":"on"}" data-orb="${m.id}" aria-label="Show ${m.label}"></button></div>`).join("")}
       <div style="margin-top:10px"><button class="sm-btn" data-act="resetOrder">Reset orb order</button></div></div>
-    <h3>Finance passcode</h3>
-    <div class="card"><div class="row"><input class="field" id="sPin" inputmode="numeric" maxlength="4" placeholder="New 4-digit PIN" style="flex:1"><button class="sm-btn" data-act="savePin">Save</button></div></div>
     <div style="margin-top:26px;display:grid;gap:10px"><button class="big-btn" data-act="switch">Switch profile</button></div>
     <p class="meta" style="margin-top:18px">${DEMO?"Demo mode — not connected to Home Assistant.":`Connected to Home Assistant${haUser&&haUser.display?" as "+esc(haUser.display):""}. Settings are saved on the Green.`}</p>`;
   },
@@ -882,12 +907,15 @@ const views={
       <h3>One-tap</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="big-btn" style="font-size:12px" data-combo="leave">Leaving</button><button class="big-btn ghost" data-combo="home">I'm home</button></div>
       <p class="meta" style="margin-top:8px">Leaving arms SimpliSafe (away)${b?" and Blink":""}. I'm home disarms ${b?"both":"it"}.</p>`:"")+
     (D.length?`<h3>Doors</h3>${D.map(dRow).join("")}`:"")+
-    (M.length?`<h3>Motion</h3>${M.map(m=>`<div class="txn"><span>${esc(nm(m).replace(/\s*Motion$/i,"").replace(/ Motion/i,""))}</span><span class="meta">${m.state==="on"?"Motion now":m.state==="off"?"Clear":"Offline"}</span></div>`).join("")}`:"");
+    (!D.length&&!M.length?note("All SimpliSafe sensors are marked inactive, so they're hidden and won't trigger alerts. Turn any back on below.","Sensors"):"")+
+    (M.length?`<h3>Motion</h3>${M.map(m=>`<div class="txn"><span>${esc(nm(m).replace(/\s*Motion$/i,"").replace(/ Motion/i,""))}</span><span class="meta">${m.state==="on"?"Motion now":m.state==="off"?"Clear":"Offline"}</span></div>`).join("")}`:"")+
+    `<h3>Manage sensors</h3><div class="card">${[...allDoors(),...allMotion(),...all().filter(x=>/^binary_sensor\..*battery$/.test(x.entity_id))].map(x=>`<div class="row" style="padding:6px 0"><span><span class="name" style="font-size:14px">${esc(nm(x))}</span><br><span class="meta">${isIgnored(x.entity_id)?"Inactive · hidden":"Active"}</span></span><button class="tog ${isIgnored(x.entity_id)?"":"on"}" data-ignore="${x.entity_id}" aria-label="Active"></button></div>`).join("")}</div>
+    <p class="meta">Inactive sensors are hidden everywhere and never trigger alerts.</p>`;
   },
 
   garage(){
     const g=garageDoor();sub("Garage");
-    const st=!g?"Not found":g.state==="on"?"Open":g.state==="off"?"Closed":"Offline";
+    const st=!g?"No active sensor":g.state==="on"?"Open":g.state==="off"?"Closed":"Offline";
     return `<div class="garage"><div class="gdoor" style="height:${g&&g.state==="on"?"12%":"100%"}"></div></div>
     <div class="lockmsg" style="margin-bottom:16px">Garage entry door: <b>${st}</b></div>`+
     note("This shows the SimpliSafe sensor on the garage entry door. Your opener is a Chamberlain/LiftMaster with myQ, which doesn't work with Home Assistant. A small ratgdo board (about $30–50) wired to the opener would let this orb open and close the big door.","Next step");
@@ -929,18 +957,6 @@ const views={
     <p class="meta">Notes save automatically and are shared between profiles.</p>`;
   },
 
-  finance(){
-    if(!fin.unlocked){
-      sub(`Locked · ${me.name}'s passcode`);
-      return `<div class="lockmsg">Enter passcode</div><div class="pin-dots" id="dots">${[0,1,2,3].map(i=>`<i class="${i<fin.pin.length?"f":""}"></i>`).join("")}</div>
-      <div class="keypad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="key" data-k="${n}">${n}</button>`).join("")}<button class="key ghost" data-k="clr">CLEAR</button><button class="key" data-k="0">0</button><button class="key ghost" data-k="del">⌫</button></div>
-      <p class="lockmsg" style="margin-top:22px;font-size:11px">Default PINs · Kyle 1234 · Macy 5678 — change yours in Settings</p>`;
-    }
-    sub("Unlocked · re-locks when closed");
-    return note("Sample numbers for now. Next step: connect your finance dashboard so balances and spending come from your bank CSV uploads.","Coming soon")+
-    `<div class="bal"><div class="stat"><div class="v">—</div><div class="k">Checking</div></div><div class="stat"><div class="v">—</div><div class="k">Savings</div></div><div class="stat"><div class="v">—</div><div class="k">Investments</div></div></div>
-    <button class="big-btn" style="margin-top:20px" data-k="lock">Lock now</button>`;
-  },
 };
 
 /* ---------- Panel interactions ---------- */
@@ -950,6 +966,7 @@ pBody.addEventListener("click",async e=>{
   const t=e.target.closest("button,.task");if(!t)return;const d=t.dataset;
   /* settings */
   if(d.theme){me.theme=d.theme;applyTheme(me.theme);save();chime(990);render();say("theme",{theme:THEMES[d.theme].name});return}
+  if(d.engine){me.voice.engine=d.engine;save();chime(900);render();say("newvoice",{},true);return}
   if(d.style){me.style=d.style;save();chime(900);render();say("style");return}
   if(d.set==="voice"){me.voice.on=!me.voice.on;save();chime(800);render();say(me.voice.on?"voice_on":"voice_off",{},true);return}
   if(d.set==="sfx"){me.sfx.on=!me.sfx.on;save();chime(800,true);render();say(me.sfx.on?"sfx_on":"sfx_off");return}
@@ -958,6 +975,7 @@ pBody.addEventListener("click",async e=>{
   if(d.act==="resetOrder"){me.order=[...MODULE_IDS];save();buildSats();chime(990);render();say("order_reset");return}
   if(d.act==="savePin"){const v=document.getElementById("sPin").value.trim();if(!/^\d{4}$/.test(v)){toast("PIN must be 4 digits");say("pin_invalid");return}me.pin=v;save();chime(1100);toast("Passcode updated");render();say("pin_saved");return}
   if(d.act==="switch"){say("switch");showPicker();return}
+  if(d.ignore){const L=appData.ignored||(appData.ignored=[]);const i=L.indexOf(d.ignore);if(i>=0)L.splice(i,1);else L.push(d.ignore);persist();chime(800);render();refresh();return}
   /* house */
   if(d.act==="addTask"){const v=document.getElementById("newTask").value.trim();if(!v)return;appData.tasks.push({t:v,due:"To do",cls:"soon",done:false});persist();chime(1000);render();say("task_added");return}
   if(d.task!==undefined){const k=appData.tasks[d.task];k.done=!k.done;persist();chime(k.done?1100:600);render();say(k.done?"task_done":"task_undone");return}
@@ -993,8 +1011,6 @@ pBody.addEventListener("click",async e=>{
     if(d.tv==="vol-")return call("media_player","volume_down",{entity_id:p.entity_id});
     if(d.tv==="play")return call("media_player","media_play_pause",{entity_id:p.entity_id});return}
   if(d.src&&p){chime(900);call("media_player","select_source",{entity_id:p.entity_id,source:d.src});return}
-  /* finance */
-  if(d.k){pinKey(d.k);return}
 });
 pBody.addEventListener("input",e=>{
   const t=e.target;lastInput=Date.now();
@@ -1007,6 +1023,7 @@ pBody.addEventListener("input",e=>{
 pBody.addEventListener("change",e=>{
   const t=e.target;
   if(t.id==="sVoice"){me.voice.uri=t.value;save();say("newvoice",{},true)}
+  if(t.id==="sPiper"){me.voice.piper=t.value;save();say("newvoice",{},true)}
   if(t.id==="sName"){sub(`${me.name}'s profile`);say("name")}
   if(t.dataset.range==="rate")say("rate",{},true);
   if(t.dataset.range==="pitch")say("pitch",{},true);
@@ -1014,18 +1031,6 @@ pBody.addEventListener("change",e=>{
 });
 pBody.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="newTask"){e.preventDefault();pBody.querySelector('[data-act="addTask"]').click()}});
 
-function pinKey(k){
-  if(k==="lock"){lockFinance();render();say("fin_lock");return}
-  if(k==="clr")fin.pin="";else if(k==="del")fin.pin=fin.pin.slice(0,-1);else if(fin.pin.length<4)fin.pin+=k;
-  chime(1000);render();
-  if(fin.pin.length===4){
-    if(fin.pin===String(me.pin)){fin.unlocked=true;fin.pin="";clearTimeout(fin.timer);
-      fin.timer=setTimeout(()=>{lockFinance();if(current==="finance")render();toast("Finances re-locked");say("fin_relock")},120000);
-      setTimeout(()=>{render();say("pin_ok")},180);
-    }else{document.getElementById("dots").classList.add("shake");chime(220);say("pin_bad");setTimeout(()=>{fin.pin="";render()},450)}
-  }
-}
-function lockFinance(){fin.unlocked=false;fin.pin="";clearTimeout(fin.timer);refresh()}
 let tt;function toast(m){const el=document.getElementById("toast");el.textContent=m;el.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>el.classList.remove("show"),2200)}
 
 /* ---------- Boot ---------- */
@@ -1039,7 +1044,8 @@ async function boot(){
        try{haUser=await (await fetch(API+"me")).json()}catch(e){}}
   if(saved.profiles&&Object.keys(saved.profiles).length)profiles=saved.profiles;
   normalizeProfiles();
-  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvStyle:saved.tvStyle||"apple"};
+  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvStyle:saved.tvStyle||"apple",
+    ignored:Array.isArray(saved.ignored)?saved.ignored:Object.keys(HA).filter(id=>DEFAULT_IGNORED_RE.test(id))};
   const who=haUser&&(haUser.display||haUser.name||"").toLowerCase();
   const match=who&&Object.values(profiles).find(p=>who.startsWith(p.name.toLowerCase())||who.startsWith(p.id));
   if(match)selectProfile(match.id);else showPicker();
