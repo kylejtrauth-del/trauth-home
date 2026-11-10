@@ -286,7 +286,7 @@ function chooseVoice(){
   return gb[0]||voices[0];
 }
 const coreWrap=document.getElementById("coreWrap");
-const PIPER_VOICES=[["en_GB-alan-medium","Alan · English male"],["en_GB-northern_english_male-medium","Northern English male"],["en_GB-jenny_dioco-medium","Jenny · English female"],["en_GB-cori-high","Cori · English female"],["en_GB-alba-medium","Alba · Scottish female"],["en_GB-southern_english_female-low","Southern English female"]];
+const PIPER_VOICES=[["en_US-danny-low","Danny · Kyle's pick"],["en_GB-alan-medium","Alan · English male"],["en_GB-northern_english_male-medium","Northern English male"],["en_GB-jenny_dioco-medium","Jenny · English female"],["en_GB-cori-high","Cori · English female"],["en_GB-alba-medium","Alba · Scottish female"],["en_GB-southern_english_female-low","Southern English female"]];
 function piperE(){return (typeof HA!=="undefined")&&(HA["tts.piper"]||Object.values(HA).find(s=>/^tts\..*piper/.test(s.entity_id)))||null}
 function useGreen(){return me&&me.voice.engine!=="device"&&!DEMO&&!!piperE()}
 const audioEl=new Audio();let audioUnlocked=false,speakSeq=0;
