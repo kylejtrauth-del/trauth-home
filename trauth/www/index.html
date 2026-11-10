@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>T.R.A.U.T.H.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* theme triplets (set by JS per profile) */
+    --c:63,208,255; --hi:191,243,255; --mid:26,156,240; --deep:12,70,150;
+    --bg:#020814;
+    --cyan:rgb(var(--c)); --cyan-hi:rgb(var(--hi)); --cyan-dim:rgba(var(--c),.35);
+    --line:rgba(var(--c),.2); --text:#dceffa; --muted:#86a6bd;
+    --warn:#ffb547; --ok:#5dffb0; --bad:#ff5d73;
+    --panel:rgba(6,18,36,.86);
+    --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:'Rajdhani',system-ui,sans-serif;overflow:hidden}
+  body{background:radial-gradient(ellipse at 50% 45%, rgba(var(--deep),.38), transparent 60%),radial-gradient(ellipse at 50% 120%, rgba(var(--deep),.4), transparent 60%),var(--bg);transition:background .6s}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.35;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:48px 48px;
+    mask-image:radial-gradient(ellipse at center, black 20%, transparent 75%);-webkit-mask-image:radial-gradient(ellipse at center, black 20%, transparent 75%)}
+  button,input,select{font-family:inherit;color:inherit}
+
+  /* ---------- Header ---------- */
+  header{position:fixed;top:0;left:0;right:0;padding:calc(14px + var(--safe-t)) 22px 10px;display:flex;justify-content:space-between;align-items:flex-start;z-index:5;pointer-events:none}
+  .brand{font-family:'Orbitron',sans-serif;font-weight:900;letter-spacing:.28em;font-size:17px;color:var(--cyan-hi);text-shadow:0 0 12px var(--cyan)}
+  .brand small{display:block;font-family:'Rajdhani';letter-spacing:.16em;font-size:11px;color:var(--muted);font-weight:500;margin-top:4px;max-width:46vw;line-height:1.35}
+  .clock{text-align:right}
+  .clock .t{font-family:'Orbitron';font-size:26px;color:var(--cyan-hi);text-shadow:0 0 14px var(--cyan)}
+  .clock .d{font-size:13px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase}
+  .hud-btns{display:flex;gap:8px;margin-top:8px;justify-content:flex-end;pointer-events:auto;align-items:center}
+  .icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--cyan-dim);background:rgba(var(--deep),.45);display:grid;place-items:center;cursor:pointer;flex:none}
+  .icon-btn svg{width:16px;height:16px;stroke:var(--cyan-hi)}
+  .who-chip{display:flex;align-items:center;gap:8px;height:34px;padding:0 12px 0 4px;border-radius:999px;border:1px solid var(--cyan-dim);background:rgba(var(--deep),.45);cursor:pointer;font-weight:600;letter-spacing:.1em;font-size:13px;text-transform:uppercase}
+  .mini-av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-family:'Orbitron';font-size:12px;color:#021;
+    background:radial-gradient(circle at 40% 35%, #fff, rgb(var(--hi)) 30%, rgb(var(--c)) 60%, rgb(var(--mid)));box-shadow:0 0 10px rgba(var(--c),.8)}
+
+  /* ---------- Stage ---------- */
+  #stage{position:fixed;inset:0}
+  #links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  #links line{stroke:var(--cyan);stroke-opacity:.18;stroke-width:1;stroke-dasharray:3 6;animation:flow 6s linear infinite}
+  #links line.hot{stroke-opacity:.75;stroke-width:1.5}
+  @keyframes flow{to{stroke-dashoffset:-90}}
+  .core-wrap{position:absolute;transform:translate(-50%,-50%);display:grid;place-items:center;cursor:pointer}
+  .ring{position:absolute;border-radius:50%;pointer-events:none}
+  .ring svg{width:100%;height:100%;overflow:visible}
+  .r1{animation:spin 40s linear infinite}.r2{animation:spin 26s linear infinite reverse}.r3{animation:spin 70s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .core{border-radius:50%;position:relative;
+    background:radial-gradient(circle at 50% 50%, #fff 0%, rgb(var(--hi)) 9%, rgb(var(--c)) 22%, rgb(var(--mid)) 42%, rgba(var(--deep),.75) 62%, rgba(var(--deep),.2) 74%, transparent 76%);
+    box-shadow:0 0 50px rgba(var(--c),.8),0 0 120px rgba(var(--mid),.45),inset 0 0 40px rgba(255,255,255,.35);animation:breathe 4.5s ease-in-out infinite}
+  .core::after{content:"";position:absolute;inset:12%;border-radius:50%;
+    background:conic-gradient(from 0deg, transparent, rgba(255,255,255,.35), transparent 30%, rgba(var(--hi),.25), transparent 65%);animation:spin 6s linear infinite;mix-blend-mode:screen;filter:blur(2px)}
+  .core-label{position:absolute;font-family:'Orbitron';font-weight:900;letter-spacing:.2em;font-size:11px;color:rgba(2,16,30,.55);pointer-events:none}
+  @keyframes breathe{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.04);filter:brightness(1.15)}}
+  .core-wrap.speaking .core{animation:talk .35s ease-in-out infinite alternate}
+  @keyframes talk{from{transform:scale(1);filter:brightness(1.1)}to{transform:scale(1.08);filter:brightness(1.45)}}
+  .status{position:absolute;transform:translateX(-50%);text-align:center;pointer-events:none;width:90vw;max-width:540px}
+  .status .greet{font-family:'Orbitron';font-size:13px;letter-spacing:.3em;color:var(--cyan-hi);text-transform:uppercase}
+  .status .line{font-size:13px;letter-spacing:.18em;color:var(--muted);margin-top:6px;text-transform:uppercase}
+  .status .line b{color:var(--ok);font-weight:600}
+
+  .sat{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;border:none;background:none;padding:0;animation:float 6s ease-in-out infinite;transition:left .45s cubic-bezier(.2,.8,.2,1),top .45s cubic-bezier(.2,.8,.2,1);touch-action:none;user-select:none;-webkit-user-select:none}
+  .sat.dragging{transition:none;z-index:4;animation:none;cursor:grabbing}
+  .sat.dragging .ball{transform:scale(1.25);border-color:#fff;box-shadow:0 0 40px rgba(var(--c),.9), inset 0 0 22px rgba(var(--hi),.5)}
+  .sat .ball{width:var(--sat);height:var(--sat);border-radius:50%;display:grid;place-items:center;position:relative;
+    background:radial-gradient(circle at 35% 30%, rgba(var(--c),.32), rgba(var(--deep),.55) 55%, rgba(3,12,26,.9));
+    border:1px solid rgba(var(--c),.55);box-shadow:0 0 18px rgba(var(--c),.35), inset 0 0 18px rgba(var(--c),.25);transition:transform .25s, box-shadow .25s, border-color .25s}
+  .sat .ball svg{width:42%;height:42%;stroke:var(--cyan-hi);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 4px var(--cyan))}
+  .sat:hover .ball,.sat:focus-visible .ball,.sat.active .ball{transform:scale(1.12);border-color:var(--cyan-hi);box-shadow:0 0 30px rgba(var(--c),.75), inset 0 0 22px rgba(var(--hi),.45)}
+  .sat .lbl{font-family:'Orbitron';font-size:10.5px;letter-spacing:.22em;color:var(--cyan-hi);text-transform:uppercase}
+  .sat .val{font-size:12px;color:var(--muted);letter-spacing:.08em;margin-top:-4px}
+  .sat .lockdot{position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:#0a1a30;border:1px solid var(--warn);display:grid;place-items:center}
+  .sat .lockdot svg{width:9px;height:9px;stroke:var(--warn);filter:none}
+  @keyframes float{0%,100%{margin-top:0}50%{margin-top:-6px}}
+
+  /* ---------- Profile picker ---------- */
+  #picker{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;
+    background:radial-gradient(ellipse at center, rgba(10,30,60,.92), rgba(1,5,12,.98));backdrop-filter:blur(8px);transition:opacity .5s}
+  #picker.hide{opacity:0;pointer-events:none}
+  #picker .ptitle{font-family:'Orbitron';font-weight:900;letter-spacing:.4em;font-size:clamp(22px,5vw,34px);color:#e9f8ff;text-shadow:0 0 20px rgba(120,200,255,.8);text-align:center;padding-left:.4em}
+  #picker .psub{font-size:12px;letter-spacing:.22em;color:var(--muted);text-transform:uppercase;text-align:center;margin-top:10px;padding:0 20px}
+  #picker .ask{font-family:'Orbitron';font-size:12px;letter-spacing:.35em;color:#9cc;text-transform:uppercase}
+  .avatars{display:flex;gap:clamp(30px,8vw,80px)}
+  .av{display:flex;flex-direction:column;align-items:center;gap:14px;cursor:pointer;background:none;border:none}
+  .av .orb{width:clamp(96px,22vw,130px);height:clamp(96px,22vw,130px);border-radius:50%;display:grid;place-items:center;font-family:'Orbitron';font-weight:900;font-size:clamp(30px,7vw,42px);color:rgba(2,16,30,.7);
+    background:radial-gradient(circle, #fff 0%, rgb(var(--hi)) 14%, rgb(var(--c)) 34%, rgb(var(--mid)) 55%, rgba(var(--deep),.6) 72%, transparent 74%);
+    box-shadow:0 0 40px rgba(var(--c),.7),0 0 90px rgba(var(--mid),.35);animation:breathe 4.5s ease-in-out infinite;transition:transform .25s}
+  .av:hover .orb{transform:scale(1.08)}
+  .av .nm{font-family:'Orbitron';letter-spacing:.3em;font-size:14px;color:rgb(var(--hi));text-transform:uppercase;padding-left:.3em}
+
+  /* ---------- Panel ---------- */
+  #scrim{position:fixed;inset:0;background:rgba(1,6,16,.45);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .3s;z-index:9}
+  #scrim.show{opacity:1;pointer-events:auto}
+  #panel{position:fixed;z-index:10;top:0;right:0;bottom:0;width:min(440px,100vw);background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-left:1px solid var(--cyan-dim);box-shadow:-20px 0 60px rgba(0,0,0,.5);transform:translateX(105%);transition:transform .38s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;padding-top:var(--safe-t)}
+  #panel.open{transform:none}
+  @media (max-width:700px){#panel{top:auto;left:0;width:100%;height:84vh;border-left:none;border-top:1px solid var(--cyan-dim);border-radius:22px 22px 0 0;transform:translateY(105%);padding-top:0}}
+  .p-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 14px;border-bottom:1px solid var(--line)}
+  .p-head h2{margin:0;font-family:'Orbitron';font-size:15px;letter-spacing:.3em;color:var(--cyan-hi);text-transform:uppercase;text-shadow:0 0 10px var(--cyan)}
+  .p-head .sub{font-size:12px;color:var(--muted);letter-spacing:.12em;margin-top:4px;text-transform:uppercase}
+  .p-body{flex:1;overflow:auto;padding:18px 22px calc(28px + var(--safe-b))}
+  .note{font-size:12.5px;color:var(--muted);border:1px dashed var(--cyan-dim);border-radius:10px;padding:9px 12px;margin-bottom:16px;letter-spacing:.03em}
+  .note b{color:var(--warn);font-weight:600}
+  h3{font-family:'Orbitron';font-size:11px;letter-spacing:.25em;color:var(--muted);text-transform:uppercase;margin:22px 0 10px;font-weight:500}
+  .card{border:1px solid var(--line);background:rgba(var(--deep),.3);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .row .name{font-size:16px;font-weight:600;letter-spacing:.03em}
+  .row .meta,.meta{font-size:12.5px;color:var(--muted)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--cyan-dim);background:rgba(var(--deep),.4);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;letter-spacing:.06em;cursor:pointer;transition:all .2s}
+  .chip:hover,.chip.on{border-color:var(--cyan-hi);background:rgba(var(--c),.18);box-shadow:0 0 14px rgba(var(--c),.35)}
+  .tog{width:50px;height:28px;border-radius:999px;border:1px solid var(--cyan-dim);background:rgba(3,12,26,.8);position:relative;cursor:pointer;flex:none;transition:all .25s}
+  .tog::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#456;transition:all .25s}
+  .tog.on{background:rgba(var(--c),.25);border-color:var(--cyan-hi)}
+  .tog.on::after{left:25px;background:var(--cyan-hi);box-shadow:0 0 10px var(--cyan)}
+  input[type=range]{width:100%;accent-color:var(--cyan);margin-top:10px}
+  .field{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--cyan-dim);background:rgba(3,12,26,.7);font-size:16px;font-weight:600;letter-spacing:.05em;outline:none}
+  .field:focus{border-color:var(--cyan-hi);box-shadow:0 0 12px rgba(var(--c),.35)}
+  select.field{appearance:none;-webkit-appearance:none;font-size:14px}
+  select.field option{background:#061224}
+  .sm-btn{padding:9px 16px;border-radius:999px;border:1px solid var(--cyan-hi);background:rgba(var(--c),.15);font-weight:700;letter-spacing:.12em;font-size:12.5px;cursor:pointer;text-transform:uppercase;white-space:nowrap}
+  .sm-btn:active{transform:scale(.97)}
+  .swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .sw{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:none;cursor:pointer;padding:4px 0}
+  .sw i{width:44px;height:44px;border-radius:50%;display:block;border:2px solid transparent;transition:all .2s;
+    background:radial-gradient(circle, #fff 0%, rgb(var(--hi)) 18%, rgb(var(--c)) 42%, rgb(var(--mid)) 64%, rgb(var(--deep)) 100%);box-shadow:0 0 14px rgba(var(--c),.55)}
+  .sw span{font-size:11.5px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+  .sw.on i{border-color:#fff;transform:scale(1.1);box-shadow:0 0 22px rgba(var(--c),.9)}
+  .sw.on span{color:#fff}
+  .slabel{display:flex;justify-content:space-between;font-size:14px;font-weight:600;letter-spacing:.04em;margin-top:12px}
+  .slabel span:last-child{color:var(--muted);font-weight:500}
+
+  /* climate */
+  .dial{width:220px;height:220px;margin:6px auto 4px;border-radius:50%;position:relative;display:grid;place-items:center;background:radial-gradient(circle, rgba(var(--c),.12), transparent 65%);border:1px solid var(--cyan-dim);box-shadow:0 0 40px rgba(var(--c),.2), inset 0 0 30px rgba(var(--c),.15)}
+  .dial .set{font-family:'Orbitron';font-size:56px;color:var(--cyan-hi);text-shadow:0 0 18px var(--cyan);line-height:1}
+  .dial .set sup{font-size:22px}
+  .dial .cap{font-size:12px;letter-spacing:.25em;color:var(--muted);text-transform:uppercase;text-align:center;margin-top:6px}
+  .dial-ctrl{display:flex;justify-content:center;gap:40px;margin:8px 0 6px}
+  .round{width:54px;height:54px;border-radius:50%;border:1px solid var(--cyan-dim);background:rgba(var(--deep),.5);font-size:26px;cursor:pointer;color:var(--cyan-hi)}
+  .round:active{transform:scale(.94)}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+  .stat{text-align:center;border:1px solid var(--line);border-radius:12px;padding:10px 4px}
+  .stat .v{font-family:'Orbitron';font-size:18px;color:var(--cyan-hi)}
+  .stat .k{font-size:11px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-top:3px}
+  /* cameras */
+  .cams{display:grid;gap:10px}
+  .cam{aspect-ratio:16/9;border-radius:14px;border:1px solid var(--cyan-dim);position:relative;overflow:hidden;background:linear-gradient(160deg,rgba(var(--deep),.5),#030b18)}
+  .cam::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg, rgba(var(--c),.06) 0 2px, transparent 2px 4px)}
+  .cam .tag{position:absolute;top:10px;left:12px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;font-weight:600}
+  .cam .src{position:absolute;top:10px;right:12px;font-size:11px;color:var(--muted);letter-spacing:.12em}
+  .cam .mid{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:13px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:0 20px}
+  .live{color:var(--bad)} .live::before{content:"●  "}
+  /* garage */
+  .garage{width:200px;height:170px;margin:50px auto 14px;border:2px solid var(--cyan-dim);border-top-width:0;position:relative;border-radius:0 0 6px 6px}
+  .garage::before{content:"";position:absolute;left:-14px;right:-14px;top:-40px;height:40px;background:rgba(var(--c),.25);clip-path:polygon(0 100%,50% 0,100% 100%,97% 100%,50% 6%,3% 100%)}
+  .gdoor{position:absolute;left:12px;right:12px;bottom:0;background:repeating-linear-gradient(0deg, rgba(var(--c),.25) 0 2px, rgba(var(--deep),.6) 2px 24px);border:1px solid var(--cyan);transition:height 1.6s ease;box-shadow:0 0 20px rgba(var(--c),.3)}
+  .big-btn{display:block;width:100%;padding:16px;border-radius:14px;border:1px solid var(--cyan-hi);background:rgba(var(--c),.15);font-family:'Orbitron';letter-spacing:.25em;font-size:14px;color:var(--cyan-hi);cursor:pointer;text-transform:uppercase;box-shadow:0 0 18px rgba(var(--c),.3)}
+  .big-btn:active{transform:scale(.98)}
+  .big-btn.ghost{border-color:var(--cyan-dim);box-shadow:none;background:none;font-size:12px}
+  /* tv */
+  .remote{max-width:260px;margin:4px auto}
+  .remote .top{display:flex;justify-content:space-between;margin-bottom:16px}
+  .dpad{width:200px;height:200px;margin:0 auto 16px;position:relative;border-radius:50%;border:1px solid var(--cyan-dim);background:rgba(var(--deep),.35)}
+  .dpad button{position:absolute;width:56px;height:56px;border:none;background:none;font-size:22px;cursor:pointer;color:var(--cyan-hi)}
+  .dpad .u{top:4px;left:72px}.dpad .d{bottom:4px;left:72px}.dpad .l{left:4px;top:72px}.dpad .r{right:4px;top:72px}
+  .dpad .ok{top:62px;left:62px;width:76px;height:76px;border-radius:50%;border:1px solid var(--cyan);background:rgba(var(--c),.15);font-family:'Orbitron';font-size:13px;letter-spacing:.15em}
+  .rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .rbtn{padding:12px 0;border-radius:12px;border:1px solid var(--cyan-dim);background:rgba(var(--deep),.4);cursor:pointer;font-weight:600;letter-spacing:.1em;font-size:13px}
+  .rbtn:active,.dpad button:active{background:rgba(var(--c),.25)}
+  /* lists */
+  .day{font-family:'Orbitron';font-size:11px;letter-spacing:.2em;color:var(--cyan);margin:16px 0 8px;text-transform:uppercase}
+  .evt{display:flex;gap:12px;align-items:center;padding:10px 12px;border-left:2px solid var(--cyan);background:rgba(var(--deep),.3);border-radius:0 10px 10px 0;margin-bottom:8px}
+  .evt .time{font-family:'Orbitron';font-size:12px;color:var(--cyan-hi);min-width:62px}
+  .evt .who{margin-left:auto;font-size:11px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+  .task{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer}
+  .task .box{width:20px;height:20px;border-radius:6px;border:1px solid var(--cyan);flex:none;display:grid;place-items:center}
+  .task.done .box{background:var(--cyan)} .task.done .box::after{content:"✓";color:#021;font-size:13px;font-weight:700}
+  .task.done .tname{text-decoration:line-through;opacity:.55}
+  .due{margin-left:auto;font-size:12px;letter-spacing:.06em;white-space:nowrap}
+  .due.late{color:var(--bad)} .due.soon{color:var(--warn)} .due.ok{color:var(--muted)}
+  .kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px}
+  .kv span:nth-child(odd){color:var(--muted)}
+  /* finance */
+  .pin-dots{display:flex;justify-content:center;gap:16px;margin:24px 0 26px}
+  .pin-dots i{width:15px;height:15px;border-radius:50%;border:1px solid var(--cyan);display:block;transition:all .15s}
+  .pin-dots i.f{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+  .pin-dots.shake{animation:shake .4s}
+  @keyframes shake{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+  .keypad{display:grid;grid-template-columns:repeat(3,72px);gap:14px;justify-content:center}
+  .key{width:72px;height:72px;border-radius:50%;border:1px solid var(--cyan-dim);background:rgba(var(--deep),.4);font-family:'Orbitron';font-size:22px;cursor:pointer;color:var(--cyan-hi)}
+  .key:active{background:rgba(var(--c),.3)}
+  .key.ghost{border:none;background:none;font-size:13px;font-family:'Rajdhani';letter-spacing:.1em}
+  .lockmsg{text-align:center;color:var(--muted);font-size:13px;letter-spacing:.12em;text-transform:uppercase}
+  .bal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .bal .stat .v{font-size:15px}
+  .bars{display:grid;gap:9px}
+  .bar{display:grid;grid-template-columns:96px 1fr 64px;align-items:center;gap:10px;font-size:13.5px}
+  .bar .track{height:8px;border-radius:9px;background:rgba(var(--c),.1);overflow:hidden}
+  .bar .fill{height:100%;background:linear-gradient(90deg,rgb(var(--mid)),var(--cyan-hi));box-shadow:0 0 8px var(--cyan)}
+  .bar .amt{text-align:right;color:var(--muted)}
+  .txn{display:flex;justify-content:space-between;padding:9px 2px;border-bottom:1px solid var(--line);font-size:14px}
+  .txn .pos{color:var(--ok)}
+  #toast{position:fixed;left:50%;bottom:calc(26px + var(--safe-b));transform:translateX(-50%) translateY(20px);opacity:0;transition:all .3s;z-index:40;
+    background:var(--panel);border:1px solid var(--cyan-dim);border-radius:999px;padding:10px 20px;font-size:14px;letter-spacing:.08em;box-shadow:0 0 20px rgba(var(--c),.3);pointer-events:none;white-space:nowrap}
+  #toast.show{opacity:1;transform:translateX(-50%)}
+  @media (max-width:700px){#toast{bottom:auto;top:calc(112px + var(--safe-t))}}
+  #wx{font-size:13px;letter-spacing:.12em;color:var(--cyan-hi);opacity:.85;margin-top:2px;text-transform:uppercase}
+  textarea.field{font-size:14px;font-weight:500;font-family:inherit;line-height:1.4}
+  .cam img{z-index:0}.cam .tag,.cam .src{z-index:1;text-shadow:0 1px 4px #000;background:rgba(0,0,0,.35);padding:2px 6px;border-radius:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">T.R.A.U.T.H.<small>Total Residential Automation &amp; Utility Tracking Hub</small></div>
+  <div class="clock">
+    <div class="t" id="time">--:--</div>
+    <div class="d" id="date"></div>
+    <div id="wx"></div>
+    <div class="hud-btns">
+      <button class="who-chip" id="whoBtn" aria-label="Switch profile"><span class="mini-av" id="whoAv">K</span><span id="whoName">Kyle</span></button>
+      <button class="icon-btn" id="setBtn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div id="stage">
+  <svg id="links"></svg>
+  <div class="core-wrap" id="coreWrap" role="button" tabindex="0" aria-label="Status briefing">
+    <div class="ring r3" id="r3"></div><div class="ring r1" id="r1"></div><div class="ring r2" id="r2"></div>
+    <div class="core" id="core"></div>
+  </div>
+  <div class="status" id="status"><div class="greet" id="greet"></div><div class="line" id="statusLine"></div></div>
+</div>
+
+<div id="picker">
+  <div><div class="ptitle">T.R.A.U.T.H.</div><div class="psub">Total Residential Automation &amp; Utility Tracking Hub</div></div>
+  <div class="ask">Who's home?</div>
+  <div class="avatars" id="avatars"></div>
+</div>
+
+<div id="scrim"></div>
+<aside id="panel" aria-hidden="true">
+  <div class="p-head">
+    <div><h2 id="pTitle"></h2><div class="sub" id="pSub"></div></div>
+    <button class="icon-btn" id="closeBtn" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="p-body" id="pBody"></div>
+</aside>
+<div id="toast"></div>
+
+<script>
+/* T.R.A.U.T.H. — Total Residential Automation & Utility Tracking Hub */
+/* ---------- Themes ---------- */
+const THEMES = {
+  arc:     {name:"Arc Blue", c:"63,208,255",  hi:"191,243,255", mid:"26,156,240",  deep:"12,70,150"},
+  ice:     {name:"Ice",      c:"190,228,255", hi:"255,255,255", mid:"120,170,225", deep:"40,70,120"},
+  violet:  {name:"Violet",   c:"170,125,255", hi:"230,212,255", mid:"125,80,240",  deep:"58,30,140"},
+  rose:    {name:"Rose",     c:"255,115,185", hi:"255,218,236", mid:"228,70,150",  deep:"115,20,80"},
+  emerald: {name:"Emerald",  c:"60,240,170",  hi:"205,255,232", mid:"20,190,130",  deep:"8,88,68"},
+  amber:   {name:"Amber",    c:"255,182,64",  hi:"255,236,192", mid:"238,140,24",  deep:"118,60,10"},
+  crimson: {name:"Crimson",  c:"255,84,96",   hi:"255,208,208", mid:"218,40,60",   deep:"108,15,25"},
+  gold:    {name:"Gold",     c:"255,214,90",  hi:"255,246,210", mid:"214,170,40",  deep:"100,80,10"},
+};
+function themeVars(id){const t=THEMES[id]||THEMES.arc;return `--c:${t.c};--hi:${t.hi};--mid:${t.mid};--deep:${t.deep}`}
+function applyTheme(id){const t=THEMES[id]||THEMES.arc;const s=document.documentElement.style;s.setProperty("--c",t.c);s.setProperty("--hi",t.hi);s.setProperty("--mid",t.mid);s.setProperty("--deep",t.deep)}
+/* ---------- Voice + sound ---------- */
+let voices=[];
+function loadVoices(){try{voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang))}catch(e){voices=[]}; if(current==="settings")render()}
+try{loadVoices();speechSynthesis.onvoiceschanged=loadVoices}catch(e){}
+function isGB(v){return /en[-_]GB/i.test(v.lang)||/UK|British/i.test(v.name)}
+function chooseVoice(){
+  if(!voices.length) return null;
+  if(me&&me.voice.uri){const v=voices.find(v=>v.voiceURI===me.voice.uri);if(v)return v}
+  // Prefer British voices: Apple "Daniel"/"Arthur", Chrome "Google UK English Male", Edge/Windows "Ryan"/"George"/"Thomas"
+  const gb=voices.filter(isGB);
+  const prefs=[/Daniel/i,/Arthur/i,/UK English Male/i,/Ryan/i,/George/i,/Thomas/i,/Oliver/i];
+  for(const p of prefs){const v=gb.find(v=>p.test(v.name));if(v)return v}
+  return gb[0]||voices[0];
+}
+const coreWrap=document.getElementById("coreWrap");
+function speak(text,force){
+  if(!me||(!me.voice.on&&!force)) return;
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);const v=chooseVoice();if(v)u.voice=v;
+    u.rate=me.voice.rate;u.pitch=me.voice.pitch;
+    u.onstart=()=>coreWrap.classList.add("speaking");u.onend=u.onerror=()=>coreWrap.classList.remove("speaking");
+    speechSynthesis.speak(u)}catch(e){}
+}
+let actx=null;
+function chime(freq=880,force){
+  if(!me||(!me.sfx.on&&!force)) return;
+  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(),g=actx.createGain(),t=actx.currentTime,peak=Math.max(.0002,.14*me.sfx.vol);
+    o.type="sine";o.frequency.setValueAtTime(freq,t);o.frequency.exponentialRampToValueAtTime(freq*1.5,t+.12);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.35);
+    o.connect(g).connect(actx.destination);o.start();o.stop(t+.4)}catch(e){}
+}
+/* ---------- Phrase bank (British butler) ---------- */
+const PHRASES={
+ proper:{
+  boot:["{greet}, {name}. Trout is online.","{greet}, {name}. Trout at your service.","Ah, {name}. Lovely to see you. Trout is online and ready.","{greet}, {name}. All systems ready when you are."],
+  brief_ok:["All systems are in order.","Everything is shipshape.","Nothing requires your attention."],
+  brief_late:["One small matter: a maintenance item is overdue.","I should mention, one maintenance task is rather overdue."],
+  open_lights:["Lighting. {count} on at present.","The lights, {name}. {count} on.","Lighting controls, as requested."],
+  open_climate:["Climate. It's {in} degrees inside, set to {set}.","It's {in} degrees in the house and {out} outside. Set to {set}.","Climate controls. A pleasant {in} degrees indoors."],
+  open_cameras:["Cameras. No motion in the last hour.","Security cameras. Nothing untoward to report.","Cameras up. All quiet on the front."],
+  open_garage:["The garage door is {state}.","Garage. The door is currently {state}."],
+  open_tv:["Television remote, at the ready.","The remote, as requested."],
+  open_calendar:["Your diary. Two engagements today.","Calendar. You've two things on today."],
+  open_house_late:["The house. I'm afraid {task} is overdue.","Household matters. {task} wants doing, it's overdue."],
+  open_house_ok:["The house is in good order.","Maintenance is all up to date. Splendid."],
+  open_fin_locked:["Finances are under lock and key. Your passcode, please.","Passcode required, {name}. One can't be too careful."],
+  open_fin_open:["Your finances, {name}.","The accounts, as requested."],
+  open_settings:["Your settings, {name}.","Settings. Make yourself at home."],
+  light_on:["{room} lights on.","Certainly. {room}, on.","Let there be light. {room}."],
+  light_off:["{room} lights off.","{room}, off.","Very good. {room} lights off."],
+  "scene_all-on":["Every light in the house, on.","All lights on. Rather bright, isn't it?"],
+  "scene_all-off":["All lights off.","Lights out. Goodnight, house."],
+  scene_evening:["Evening lighting. Very civilised.","Evening scene. Do put your feet up."],
+  scene_movie:["Movie mode. Lights down. Popcorn is your department.","Lights dimmed for the film. Enjoy."],
+  scene_bedtime:["Bedtime lighting. Sleep well, {name}.","Bedtime. Sweet dreams."],
+  temp:["Setting the house to {set} degrees.","Very good. {set} degrees it is.","Adjusting to {set} degrees."],
+  mode_cool:["Cooling mode. Quite right, too.","Air conditioning on cool."],
+  mode_heat:["Heating mode. Nice and toasty."],
+  mode_auto:["Automatic mode. I'll keep things comfortable."],
+  mode_off:["Climate system off."],
+  fan:["Fan set to {fan}."],
+  arm_away:["Away mode. Cameras armed. I'll keep an eye on things.","Cameras armed. Off you go, I'll mind the house."],
+  arm_home:["Welcome home, {name}. Cameras disarmed.","Cameras stood down. Welcome back, {name}."],
+  garage_open:["Certainly. Opening the garage.","Opening the garage door. Mind your head."],
+  garage_close:["Closing the garage now.","Garage closing. Safe and sound."],
+  tv_on:["Television on. Do enjoy."],
+  tv_off:["Television off. Back to the real world."],
+  task_done:["Marked as done. Jolly good.","Splendid. One less thing to worry about.","Done and dusted."],
+  task_undone:["Right. I've put that back on the list."],
+  pin_ok:["Access granted. Welcome, {name}.","Passcode accepted. Do come in."],
+  pin_bad:["I'm afraid that's not quite right.","Access denied. Do try again."],
+  fin_lock:["Finances locked. Safe as houses.","Locked up tight."],
+  fin_relock:["I've locked the finances again, just to be safe."],
+  theme:["{theme}. Rather fetching.","{theme} it is. Very smart.","A {theme} glow. Excellent choice."],
+  voice_on:["Ah, I can speak again. Splendid."],
+  voice_off:["Very well. I shall keep quiet."],
+  sfx_on:["Sounds back on."],
+  sfx_off:["Sounds off. Peace and quiet."],
+  orb_hide:["{orb} tucked away.","Very good. {orb} hidden."],
+  orb_show:["{orb} restored.","{orb} is back in orbit."],
+  orb_min:["I'm afraid I need at least two orbs to work with."],
+  order_reset:["Orbs returned to their original places."],
+  drag:["Rearranged. Rather tidy.","New arrangement noted.","As you wish. Moved."],
+  name:["Very good. I shall call you {name} from now on."],
+  pin_saved:["New passcode saved. Mum's the word."],
+  pin_invalid:["Four digits, if you please."],
+  reset:["Settings restored to their defaults."],
+  switch:["Of course. Who's taking over?"],
+  style:["Proper and polite. As it should be."],
+  test:["{greet}, {name}. Trout at your service."],
+  newvoice:["Right then, {name}. How does this sound?"],
+  rate:["Is this pace to your liking?"],
+  pitch:["Better? Or shall I try again?"],
+ },
+ cheeky:{
+  boot:["Oh, it's you, {name}. Kidding. Trout is online.","{greet}, {name}. Kettle's not on, but I am.","Right, {name}. Trout's awake. Barely."],
+  brief_ok:["All quiet. Suspiciously quiet.","Everything's tickety-boo."],
+  brief_late:["Also, that overdue chore isn't going to do itself."],
+  open_lights:["Lights. {count} on. Who's paying for this?","Lighting. {count} burning away."],
+  open_cameras:["Cameras. Nobody lurking about.","Cameras. Just the neighbour's cat, probably."],
+  open_tv:["The remote, {name}. Do try not to lose this one.","Remote control. Down the back of the sofa, as usual."],
+  open_house_late:["The house. {task} is overdue. Just saying."],
+  open_fin_locked:["Ah ah ah. Passcode first.","Nice try. Passcode, please."],
+  open_settings:["Fiddling with the settings again, {name}?"],
+  light_off:["{room}, off. Mind the coffee table.","Darkness in the {room}. Very moody."],
+  "scene_all-on":["Every light on. Lovely for the electric bill."],
+  scene_movie:["Movie mode. I'll pretend not to hear you narrating it."],
+  scene_bedtime:["Bedtime. Off you pop, {name}."],
+  temp:["{set} degrees. Not too chilly, I hope.","{set} it is. Bit fussy today, aren't we?"],
+  mode_cool:["Cooling. It's a sauna out there."],
+  arm_away:["Cameras armed. I'll guard the castle."],
+  arm_home:["Oh good, you're back. It was getting dull."],
+  garage_open:["Opening the garage. Mind the car."],
+  tv_on:["Telly's on. One more episode, then bed."],
+  tv_off:["Telly off. Go outside, perhaps."],
+  task_done:["Done! Look at you, being responsible.","Ticked off. Smashing."],
+  pin_ok:["Right, you're in. Try not to faint."],
+  pin_bad:["Nope. Shall I ring the bank, or will you try again?","Wrong. Bold of you, though."],
+  theme:["{theme}? Ooh, very fancy.","{theme}. Gorgeous, if I say so myself."],
+  voice_off:["Fine. I'll sulk quietly."],
+  voice_on:["Missed me? Of course you did."],
+  drag:["Moving the furniture again, are we?","Shuffled. Happy now?"],
+  name:["{name}? Bit posh. I like it."],
+  pin_saved:["New passcode. I promise not to tell."],
+  style:["Oh, we're doing cheeky now, are we? Lovely."],
+  test:["Testing, testing. Is this thing on, {name}?"],
+ }
+};
+const lastPick={};
+function line(key,v={}){
+  const st=(me&&me.style)||"proper";
+  const arr=(PHRASES[st]&&PHRASES[st][key])||PHRASES.proper[key];if(!arr)return "";
+  let i=Math.floor(Math.random()*arr.length);if(arr.length>1&&i===lastPick[key])i=(i+1)%arr.length;lastPick[key]=i;
+  const vars={name:me?me.name:"",greet:partOfDay(),...v};
+  return arr[i].replace(/\{(\w+)\}/g,(_,k)=>vars[k]!==undefined?vars[k]:"");
+}
+function sayText(t,force){speak(t,force)}
+function say(key,v,force){sayText(line(key,v),force)}
+let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=setTimeout(()=>say(key,v),ms)}
+
+/* =========================================================
+   LIVE LAYER — talks to Home Assistant through the add-on.
+   If Home Assistant isn't reachable (e.g. opened as a plain
+   web page), the app runs in DEMO mode with Kyle's devices
+   mocked so everything can still be clicked through.
+   ========================================================= */
+const API="api/";
+let DEMO=false, ONLINE=true, HA={}, haUser=null;
+let appData={};
+let saveTimer=null;
+
+/* ---------- Extra phrases for real devices ---------- */
+Object.assign(PHRASES.proper,{
+  open_lights_none:["No smart lights are connected just yet.","I've no lights to command yet, I'm afraid."],
+  open_security:["Security. The alarm is {state}.","Security panel. Alarm {state}."],
+  open_garage:["The garage entry door is {state}.","Garage. The entry door is {state}."],
+  open_calendar:["Your diary, {name}.","The calendar, as requested."],
+  open_cameras:["Cameras. Bringing up the feeds.","Security cameras, coming up."],
+  sec_disarm:["Alarm disarmed. Welcome home.","Disarmed. Do come in."],
+  sec_arm_home:["Alarm set to home mode. Sleep tight.","Home mode armed."],
+  sec_arm_away:["Alarm armed, away mode. I'll keep watch.","Away mode armed. The house is in safe hands."],
+  leave:["Off you go. Alarm and cameras armed.","Locking things down. Safe travels."],
+  home_again:["Welcome home, {name}. Alarm and cameras disarmed."],
+  doors_open:["Before you go, {doors} open."],
+  mode_heat_cool:["Automatic mode. I'll keep things comfortable."],
+  mode_auto:["Automatic mode. I'll keep things comfortable."],
+  fail:["I'm afraid that didn't go through.","Terribly sorry, that didn't work."],
+  cam_motion_on:["Motion alerts on for {cam}."],
+  cam_motion_off:["Motion alerts off for {cam}."],
+  task_added:["Added to the list."],
+});
+Object.assign(PHRASES.cheeky,{
+  open_lights_none:["No lights yet. Bit dark in here, isn't it?"],
+  sec_arm_away:["Alarm armed. Burglars, consider yourselves warned."],
+  sec_disarm:["Disarmed. Try not to trip anything."],
+  leave:["Right, off you pop. I'll guard the castle."],
+  fail:["Well, that didn't work. Blame the Wi-Fi."],
+});
+
+/* ---------- Entity discovery ---------- */
+const all=()=>Object.values(HA);
+const dom=d=>all().filter(s=>s.entity_id.startsWith(d+"."));
+const nm=s=>String((s.attributes&&s.attributes.friendly_name)||s.entity_id).trim();
+const live=s=>s&&s.state!=="unavailable"&&s.state!=="unknown";
+const num=v=>{const n=parseFloat(v);return isNaN(n)?null:n};
+const r0=v=>v==null?"--":Math.round(v);
+function climateE(){return dom("climate")[0]}
+function weatherE(){return HA["weather.home"]||dom("weather")[0]}
+function cams(){return dom("camera")}
+function alarms(){return dom("alarm_control_panel")}
+function mainAlarm(){return alarms().find(a=>!/blink/i.test(a.entity_id))||null}
+function blinkAlarm(){return alarms().find(a=>/blink/i.test(a.entity_id))||null}
+function doors(){return dom("binary_sensor").filter(s=>["door","garage_door","window","opening"].includes(s.attributes.device_class)||/_door$/.test(s.entity_id))}
+function doorName(s){return nm(s).replace(/\s*Entry Door$/i,"").replace(/\s*Door$/i," door").replace(/door door/i,"door").trim()}
+function motionSensors(){return dom("binary_sensor").filter(s=>!/battery/i.test(s.entity_id)&&(s.attributes.device_class==="motion"||/_motion(_motion)?$/.test(s.entity_id)))}
+function lightEnts(){return [...dom("light"),...dom("switch").filter(s=>!/motion|camera|siren|blink|ring/i.test(s.entity_id))]}
+function tvPlayer(){const m=dom("media_player");return m.find(x=>live(x)&&x.state!=="off")||m[0]||null}
+function tvRemote(){return dom("remote")[0]||null}
+function calendars(){return dom("calendar")}
+function garageDoor(){return doors().find(d=>/garage/i.test(d.entity_id))||null}
+function openDoors(){return doors().filter(d=>d.state==="on")}
+function offlineDoors(){return doors().filter(d=>d.state==="unavailable")}
+function lowBatteries(){
+  const out=[];
+  all().forEach(s=>{
+    const isBatt=s.attributes.device_class==="battery"||/battery/i.test(s.entity_id);
+    if(!isBatt)return;
+    if(s.entity_id.startsWith("sensor.")){const n=num(s.state);if(n!=null&&n<=20)out.push({name:nm(s).replace(/\s*Battery$/i,""),pct:n})}
+    else if(s.entity_id.startsWith("binary_sensor.")&&s.state==="on")out.push({name:nm(s).replace(/\s*Battery$/i,""),pct:null});
+  });
+  return out;
+}
+function camName(s){return nm(s).replace(/\s*Live view$/i,"")}
+function alarmLabel(st){return({disarmed:"Disarmed",armed_home:"Armed · Home",armed_away:"Armed · Away",armed_night:"Armed · Night",arming:"Arming…",pending:"Pending…",triggered:"ALARM!",disarming:"Disarming…",unavailable:"Offline"})[st]||cap(String(st||"unknown"))}
+function alarmSpoken(st){return({disarmed:"disarmed",armed_home:"armed, home mode",armed_away:"armed, away mode",armed_night:"armed, night mode",triggered:"triggered"})[st]||String(st).replace(/_/g," ")}
+function listWords(a){return a.length<=1?(a[0]||""):a.slice(0,-1).join(", ")+" and "+a[a.length-1]}
+
+/* ---------- Talking to Home Assistant ---------- */
+async function pull(){
+  if(DEMO)return;
+  try{
+    const r=await fetch(API+"ha/states",{cache:"no-store"});if(!r.ok)throw new Error(r.status);
+    const arr=await r.json();const m={};arr.forEach(s=>m[s.entity_id]=s);HA=m;ONLINE=true;
+  }catch(e){ONLINE=false}
+  refresh();softRender();
+}
+async function call(domain,service,payload){
+  if(DEMO){demoApply(domain,service,payload||{});refresh();softRender(true);return true}
+  try{
+    const r=await fetch(API+`ha/services/${domain}/${service}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload||{})});
+    if(!r.ok){let msg="";try{msg=(await r.json()).message||""}catch(_){}
+      toast(msg?`Home Assistant: ${msg}`.slice(0,70):`That didn't work (${r.status})`);say("fail");return false}
+    setTimeout(pull,500);setTimeout(pull,2500);return true;
+  }catch(e){toast("Can't reach Home Assistant");say("fail");return false}
+}
+function persist(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvStyle:appData.tvStyle||"apple"};
+    if(DEMO){try{localStorage.setItem("trauth.demo",JSON.stringify(payload))}catch(e){};return}
+    try{await fetch(API+"data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})}catch(e){toast("Couldn't save settings")}
+  },400);
+}
+function save(){persist()}
+
+/* ---------- Demo mode (Kyle's devices, mocked) ---------- */
+function demoStates(){
+  const s=(id,state,attrs)=>({entity_id:id,state,attributes:attrs||{}});
+  return [
+    s("person.kyle","home",{friendly_name:"Kyle"}),s("person.macy","home",{friendly_name:"Macy"}),
+    s("weather.home","partlycloudy",{friendly_name:"Home",temperature:79,humidity:72}),
+    s("climate.house_tstat_1c7f03_lyric_t6_pro_thermostat","cool",{friendly_name:"Tstat-1C7F03 Lyric T6 Pro Thermostat",hvac_modes:["off","heat","cool","heat_cool"],current_temperature:74.3,temperature:72,current_humidity:55,hvac_action:"cooling",fan_modes:["on","auto"],fan_mode:"auto",min_temp:50,max_temp:90}),
+    s("camera.house_front_door_live_view","idle",{friendly_name:"Front Door"}),
+    s("camera.front_room_indoor_cam_live_view","idle",{friendly_name:"Indoor Cam Live view"}),
+    s("camera.house_backyard","idle",{friendly_name:"Backyard"}),
+    s("camera.house_frontyard","idle",{friendly_name:"Frontyard"}),
+    s("switch.front_room_indoor_cam_motion_detection","off",{friendly_name:"Indoor Cam Motion detection"}),
+    s("switch.house_backyard_camera_motion_detection","on",{friendly_name:"Backyard Camera motion detection"}),
+    s("switch.house_frontyard_camera_motion_detection","on",{friendly_name:"Frontyard Camera motion detection"}),
+    s("sensor.house_front_door_battery","2",{friendly_name:"Front Door Battery",device_class:"battery",unit_of_measurement:"%"}),
+    s("sensor.front_room_indoor_cam_battery","100",{friendly_name:"Indoor Cam Battery",device_class:"battery",unit_of_measurement:"%"}),
+    s("alarm_control_panel.house_blink_trout_camera","disarmed",{friendly_name:"blink Trout Camera",code_format:null}),
+    s("alarm_control_panel.house_alarm_control_panel","disarmed",{friendly_name:"Alarm control panel",code_format:null}),
+    s("binary_sensor.house_side_door_entry_door","on",{friendly_name:"Side door Entry Door",device_class:"door"}),
+    s("binary_sensor.house_front_door_entry_door","unavailable",{friendly_name:"Front door Entry Door",device_class:"door"}),
+    s("binary_sensor.house_garage_entry_door","on",{friendly_name:"Garage Entry Door",device_class:"door"}),
+    s("binary_sensor.house_back_door_entry_door","unavailable",{friendly_name:"Back door Entry Door",device_class:"door"}),
+    s("binary_sensor.living_room_living_room_motion_motion","off",{friendly_name:"Living room Motion",device_class:"motion"}),
+    s("binary_sensor.house_backyard_motion","off",{friendly_name:"Backyard Motion",device_class:"motion"}),
+    s("binary_sensor.house_frontyard_motion","off",{friendly_name:"Frontyard Motion",device_class:"motion"}),
+    s("media_player.living_room_living_room_2","on",{friendly_name:"Living Room",volume_level:.3,is_volume_muted:false,source_list:["Netflix","YouTube","Hulu"],app_name:"YouTube"}),
+    s("remote.living_room_living_room","on",{friendly_name:"Living Room"}),
+  ];
+}
+function demoApply(domain,service,p){
+  const ids=[].concat(p.entity_id||[]);const set=(id,st,at)=>{if(!HA[id])return;HA[id]={...HA[id],state:st??HA[id].state,attributes:{...HA[id].attributes,...(at||{})}}};
+  ids.forEach(id=>{
+    if(domain==="climate"){
+      if(service==="set_temperature")set(id,null,p.temperature!=null?{temperature:p.temperature}:{target_temp_low:p.target_temp_low,target_temp_high:p.target_temp_high});
+      if(service==="set_hvac_mode")set(id,p.hvac_mode,p.hvac_mode==="heat_cool"?{temperature:null,target_temp_low:68,target_temp_high:74}:{temperature:HA[id].attributes.temperature??72});
+      if(service==="set_fan_mode")set(id,null,{fan_mode:p.fan_mode});
+    }
+    if(domain==="alarm_control_panel")set(id,({alarm_disarm:"disarmed",alarm_arm_home:"armed_home",alarm_arm_away:"armed_away"})[service]);
+    if(domain==="switch"||domain==="light"){const cur=HA[id]&&HA[id].state;set(id,service==="toggle"?(cur==="on"?"off":"on"):service==="turn_on"?"on":"off",p.brightness_pct!=null?{brightness:Math.round(p.brightness_pct*2.55)}:null)}
+    if(domain==="media_player"){if(service==="turn_on")set(id,"on");if(service==="turn_off")set(id,"off");if(service==="volume_mute")set(id,null,{is_volume_muted:p.is_volume_muted});if(service==="select_source")set(id,null,{app_name:p.source,source:p.source})}
+  });
+}
+
+/* ---------- Profiles ---------- */
+const MODULE_IDS=["lights","climate","cameras","security","garage","tv","calendar","house","finance"];
+function newProfile(id,name,theme,pin){return {id,name,theme,voice:{on:true,uri:"",rate:0.95,pitch:id==="kyle"?0.9:1.0},sfx:{on:true,vol:0.6},hidden:[],order:[...MODULE_IDS],style:"proper",pin}}
+const DEFAULT_PROFILES={kyle:newProfile("kyle","Kyle","arc","1234"),macy:newProfile("macy","Macy","violet","5678")};
+let profiles=JSON.parse(JSON.stringify(DEFAULT_PROFILES));
+let me=null;
+function normalizeProfiles(){
+  Object.values(profiles).forEach(p=>{
+    const d=newProfile(p.id||"x",p.name||"Guest","arc","0000");
+    for(const k in d)if(p[k]==null)p[k]=d[k];
+    p.order=p.order.filter(id=>MODULE_IDS.includes(id));MODULE_IDS.forEach(id=>{if(!p.order.includes(id))p.order.push(id)});
+  });
+}
+const DEFAULT_TASKS=[
+  {t:"Charge Ring doorbell battery",due:"Now",cls:"late",done:false},
+  {t:"Replace AC filter",due:"Monthly",cls:"soon",done:false},
+  {t:"Test smoke detectors",due:"Monthly",cls:"soon",done:false},
+  {t:"Flush water heater",due:"Yearly",cls:"ok",done:false},
+  {t:"Clean gutters",due:"Fall",cls:"ok",done:false},
+  {t:"Hurricane kit check",due:"Before June",cls:"ok",done:false},
+];
+
+/* ---------- Icons ---------- */
+const I={
+  lights:'<svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>',
+  climate:'<svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 9v7"/></svg>',
+  cameras:'<svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="m16 11 5-3v8l-5-3"/></svg>',
+  security:'<svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>',
+  garage:'<svg viewBox="0 0 24 24"><path d="M3 10 12 4l9 6v10H3z"/><path d="M7 20v-7h10v7M7 15.5h10M7 18h10"/></svg>',
+  tv:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+  calendar:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  house:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>',
+  finance:'<svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 6.5c-1-1.2-2.8-2-5-2-2.8 0-4.5 1.4-4.5 3.3 0 4.6 9.5 2.6 9.5 7.4 0 2-1.9 3.3-5 3.3-2.3 0-4.2-.9-5.2-2.2"/></svg>',
+  lock:'<svg viewBox="0 0 24 24" fill="none" stroke-width="3"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+};
+const fin={unlocked:false,pin:"",timer:null};
+function alertCount(){return openDoors().length+offlineDoors().length+lowBatteries().length+(appData.tasks||[]).filter(t=>!t.done&&t.cls==="late").length}
+const modules=[
+  {id:"lights",label:"Lights",icon:I.lights,val:()=>{const l=lightEnts();return l.length?`${l.filter(x=>x.state==="on").length} on`:"None yet"}},
+  {id:"climate",label:"Climate",icon:I.climate,val:()=>{const c=climateE();return c?`${r0(c.attributes.current_temperature)}° in`:"—"}},
+  {id:"cameras",label:"Cameras",icon:I.cameras,val:()=>`${cams().length} cams`},
+  {id:"security",label:"Security",icon:I.security,val:()=>{const a=mainAlarm();return a?alarmLabel(a.state):"—"}},
+  {id:"garage",label:"Garage",icon:I.garage,val:()=>{const g=garageDoor();return !g?"—":g.state==="on"?"Door open":g.state==="off"?"Closed":"Offline"}},
+  {id:"tv",label:"TV",icon:I.tv,val:()=>{const p=tvPlayer();return p?(p.state==="off"?"Off":"On"):"—"}},
+  {id:"calendar",label:"Calendar",icon:I.calendar,val:()=>calendars().length?"This week":"Connect"},
+  {id:"house",label:"House",icon:I.house,val:()=>{const n=alertCount();return n?`${n} alert${n>1?"s":""}`:"All good"}},
+  {id:"finance",label:"Finances",icon:I.finance,locked:true,val:()=>fin.unlocked?"Unlocked":"Locked"},
+];
+
+/* ---------- Rings ---------- */
+function ringSVG(r,dash,ticks){
+  let s=`<svg viewBox="-100 -100 200 200"><circle r="${r}" fill="none" style="stroke:rgba(var(--c),.45)" stroke-width="0.6" stroke-dasharray="${dash}"/>`;
+  if(ticks){for(let a=0;a<360;a+=360/ticks){const q=a*Math.PI/180;s+=`<line x1="${Math.cos(q)*(r-3)}" y1="${Math.sin(q)*(r-3)}" x2="${Math.cos(q)*(r+3)}" y2="${Math.sin(q)*(r+3)}" style="stroke:rgba(var(--hi),.7)" stroke-width="0.8"/>`}}
+  return s+"</svg>";
+}
+document.getElementById("r1").innerHTML=ringSVG(96,"2 3",0);
+document.getElementById("r2").innerHTML=ringSVG(96,"40 14 6 14",0);
+document.getElementById("r3").innerHTML=ringSVG(96,"0.5 4",24);
+/* ---------- Satellites ---------- */
+const stage=document.getElementById("stage"),links=document.getElementById("links");
+let satEls=[];
+function visibleModules(){if(!me)return modules;return me.order.filter(id=>!me.hidden.includes(id)).map(id=>modules.find(m=>m.id===id)).filter(Boolean)}
+function buildSats(){
+  satEls.forEach(e=>e.remove());satEls=[];
+  visibleModules().forEach((m,i)=>{
+    const b=document.createElement("button");b.className="sat";b.dataset.id=m.id;b.style.animationDelay=(-i*.8)+"s";
+    b.innerHTML=`<div class="ball">${m.icon}${m.locked?`<span class="lockdot">${I.lock}</span>`:""}</div><div class="lbl">${m.label}</div><div class="val"></div>`;
+    b.addEventListener("click",()=>{if(justDragged){justDragged=false;return}openModule(m.id)});
+    b.addEventListener("pointerdown",e=>startDrag(e,b));
+    stage.appendChild(b);satEls.push(b);
+  });
+  layout();refresh();
+}
+let geo={cx:0,cy:0},dragEl=null,justDragged=false;
+function layout(){
+  const W=innerWidth,H=innerHeight,mobile=W<700;
+  const cx=W/2,cy=H*(mobile?.5:.52);
+  const R=Math.min(W*(mobile?.38:.32),H*.30),yk=mobile?1.05:.92;
+  const core=Math.max(90,Math.min(R*.62,190)),sat=Math.max(54,Math.min(R*.30,84));
+  document.documentElement.style.setProperty("--sat",sat+"px");
+  Object.assign(coreWrap.style,{left:cx+"px",top:cy+"px",width:core*1.9+"px",height:core*1.9+"px"});
+  const c=document.getElementById("core");c.style.width=c.style.height=core+"px";
+  [["r1",1.35],["r2",1.6],["r3",1.9]].forEach(([id,k])=>{const e=document.getElementById(id);e.style.width=e.style.height=core*k+"px"});
+  const st=document.getElementById("status");st.style.left=cx+"px";st.style.top=Math.min(cy+R*yk+sat*.5+56,H-62)+"px";
+  links.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  geo={cx,cy};const n=satEls.length;let ls="";
+  satEls.forEach((el,i)=>{
+    const a=-Math.PI/2+i*(2*Math.PI/n),x=cx+Math.cos(a)*R,y=cy+Math.sin(a)*R*yk;
+    if(el!==dragEl){el.style.left=x+"px";el.style.top=y+"px"}
+    ls+=`<line data-id="${el.dataset.id}" x1="${cx+Math.cos(a)*core*.95}" y1="${cy+Math.sin(a)*core*.95}" x2="${x-Math.cos(a)*sat*.55}" y2="${y-Math.sin(a)*sat*.55}"/>`;
+  });
+  links.innerHTML=ls;
+}
+addEventListener("resize",layout);
+
+/* ---------- Drag to rearrange orbs ---------- */
+function startDrag(e,el){
+  if(e.button!==undefined&&e.button!==0)return;
+  const sx=e.clientX,sy=e.clientY;let active=false;
+  try{el.setPointerCapture(e.pointerId)}catch(_){}
+  const move=ev=>{
+    if(!active){if(Math.hypot(ev.clientX-sx,ev.clientY-sy)<8)return;active=true;dragEl=el;el.classList.add("dragging");chime(520)}
+    el.style.left=ev.clientX+"px";el.style.top=ev.clientY+"px";
+    const n=satEls.length,step=2*Math.PI/n;
+    let a=Math.atan2(ev.clientY-geo.cy,ev.clientX-geo.cx)+Math.PI/2;if(a<0)a+=2*Math.PI;
+    const target=Math.round(a/step)%n,cur=satEls.indexOf(el);
+    if(target!==cur){satEls.splice(cur,1);satEls.splice(target,0,el);layout();chime(740)}
+  };
+  const up=()=>{
+    el.removeEventListener("pointermove",move);el.removeEventListener("pointerup",up);el.removeEventListener("pointercancel",up);
+    if(!active)return;
+    justDragged=true;setTimeout(()=>justDragged=false,350);
+    el.classList.remove("dragging");dragEl=null;
+    const vis=satEls.map(x=>x.dataset.id);me.order=[...vis,...me.order.filter(id=>!vis.includes(id))];save();
+    layout();chime(990);say("drag");
+  };
+  el.addEventListener("pointermove",move);el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);
+}
+
+/* ---------- Header / status ---------- */
+function partOfDay(){const h=new Date().getHours();return h<12?"Good morning":h<17?"Good afternoon":"Good evening"}
+function wxText(){const w=weatherE();if(!w)return "";const t=w.attributes.temperature;return `${t!=null?r0(t)+"° · ":""}${String(w.state).replace(/[-_]/g," ").replace("partlycloudy","partly cloudy")}`}
+function tick(){const d=new Date();
+  document.getElementById("time").textContent=d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+  document.getElementById("date").textContent=d.toLocaleDateString([],{weekday:"long",month:"short",day:"numeric"});
+  document.getElementById("wx").textContent=wxText();
+  if(me)document.getElementById("greet").textContent=`${partOfDay()}, ${me.name}`}
+function refresh(){
+  satEls.forEach(el=>{const m=modules.find(x=>x.id===el.dataset.id);el.querySelector(".val").textContent=m.val()});
+  const c=climateE(),a=mainAlarm(),n=alertCount();
+  const parts=[n?`<b style="color:var(--warn)">${n} alert${n>1?"s":""}</b>`:"<b>All systems normal</b>"];
+  if(c)parts.push(`${r0(c.attributes.current_temperature)}° inside`);
+  if(a)parts.push(`Alarm ${alarmLabel(a.state).toLowerCase()}`);
+  if(!ONLINE&&!DEMO)parts.unshift(`<b style="color:var(--bad)">Home Assistant offline</b>`);
+  if(DEMO)parts.push(`<b style="color:var(--warn)">Demo</b>`);
+  document.getElementById("statusLine").innerHTML=parts.join(" · ");
+  if(me){document.getElementById("whoName").textContent=me.name;document.getElementById("whoAv").textContent=(me.name[0]||"?").toUpperCase()}
+  tick();
+}
+function briefing(){
+  const c=climateE(),w=weatherE(),a=mainAlarm(),od=openDoors().map(doorName),lb=lowBatteries();
+  let s=`${partOfDay()}, ${me.name}. `;
+  if(c)s+=`It's ${r0(c.attributes.current_temperature)} degrees inside`+(w&&w.attributes.temperature!=null?` and ${r0(w.attributes.temperature)} outside. `:". ");
+  if(a)s+=`The alarm is ${alarmSpoken(a.state)}. `;
+  if(od.length)s+=`The ${listWords(od.map(d=>d.toLowerCase()))} ${od.length>1?"are":"is"} open. `;
+  lb.forEach(b=>{s+=b.pct!=null?`The ${b.name.toLowerCase()} battery is at ${b.pct} percent. `:`The ${b.name.toLowerCase()} battery is low. `});
+  if(!od.length&&!lb.length)s+=line("brief_ok");
+  return s;
+}
+coreWrap.addEventListener("click",()=>{chime(660);sayText(briefing())});
+coreWrap.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" ")coreWrap.click()});
+
+/* ---------- Profile picker ---------- */
+const picker=document.getElementById("picker");
+function showPicker(){
+  closePanel(true);
+  document.getElementById("avatars").innerHTML=Object.values(profiles).map(p=>
+    `<button class="av" data-p="${p.id}" style="${themeVars(p.theme)}"><span class="orb">${(p.name[0]||"?").toUpperCase()}</span><span class="nm">${esc(p.name)}</span></button>`).join("");
+  picker.classList.remove("hide");
+}
+document.getElementById("avatars").addEventListener("click",e=>{const b=e.target.closest(".av");if(b)selectProfile(b.dataset.p)});
+function selectProfile(id,quiet){
+  me=profiles[id];lockFinance();applyTheme(me.theme);buildSats();
+  picker.classList.add("hide");
+  if(!quiet){chime(660);setTimeout(()=>say("boot"),250)}
+}
+document.getElementById("whoBtn").addEventListener("click",()=>{say("switch");showPicker()});
+document.getElementById("setBtn").addEventListener("click",()=>openModule("settings"));
+
+/* ---------- Panel ---------- */
+const panel=document.getElementById("panel"),scrim=document.getElementById("scrim"),pBody=document.getElementById("pBody");
+let current=null,lastInput=0,camTimer=null;
+function openModule(id){
+  current=id;chime(880);
+  satEls.forEach(el=>el.classList.toggle("active",el.dataset.id===id));
+  links.querySelectorAll("line").forEach(l=>l.classList.toggle("hot",l.dataset.id===id));
+  const m=modules.find(x=>x.id===id);
+  document.getElementById("pTitle").textContent=m?m.label:"Settings";
+  render();panel.classList.add("open");scrim.classList.add("show");panel.setAttribute("aria-hidden","false");
+  clearInterval(camTimer);if(id==="cameras")camTimer=setInterval(refreshCams,4000);
+  if(id==="calendar")loadCalendar();
+  sayOpen(id);
+}
+function closePanel(){
+  panel.classList.remove("open");scrim.classList.remove("show");panel.setAttribute("aria-hidden","true");
+  satEls.forEach(el=>el.classList.remove("active"));links.querySelectorAll("line").forEach(l=>l.classList.remove("hot"));
+  clearInterval(camTimer);
+  if(current==="finance")lockFinance();current=null;refresh();
+}
+document.getElementById("closeBtn").onclick=()=>closePanel();scrim.onclick=()=>closePanel();
+addEventListener("keydown",e=>{if(e.key==="Escape"&&current)closePanel()});
+function sayOpen(id){
+  const c=climateE(),w=weatherE();
+  if(id==="settings")return say("open_settings");
+  if(id==="lights"){const l=lightEnts();return l.length?say("open_lights",{count:countPhrase(l.filter(x=>x.state==="on").length)}):say("open_lights_none")}
+  if(id==="climate"&&c)return say("open_climate",{in:r0(c.attributes.current_temperature),out:w?r0(w.attributes.temperature):"--",set:r0(c.attributes.temperature??c.attributes.target_temp_high)});
+  if(id==="security"){const a=mainAlarm();return a&&say("open_security",{state:alarmSpoken(a.state)})}
+  if(id==="garage"){const g=garageDoor();return say("open_garage",{state:!g?"unknown":g.state==="on"?"open":g.state==="off"?"closed":"offline"})}
+  if(id==="house"){const l=(appData.tasks||[]).find(t=>!t.done&&t.cls==="late");return l?say("open_house_late",{task:l.t.toLowerCase()}):say("open_house_ok")}
+  if(id==="finance")return say(fin.unlocked?"open_fin_open":"open_fin_locked");
+  return say("open_"+id);
+}
+
+function sub(t){document.getElementById("pSub").textContent=t}
+function note(t,label="Note"){return `<div class="note"><b>${label} ·</b> ${t}</div>`}
+function cap(s){s=String(s||"");return s?s[0].toUpperCase()+s.slice(1):s}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function countPhrase(n){return n===0?"No lights":n===1?"One light":`${n} lights`}
+function render(){if(!current||!views[current])return;const y=pBody.scrollTop;pBody.innerHTML=views[current]();pBody.scrollTop=y;refresh()}
+function softRender(force){
+  if(!current||["settings","finance","calendar","cameras"].includes(current))return;
+  if(!force&&Date.now()-lastInput<2500)return;
+  const a=document.activeElement;if(!force&&a&&pBody.contains(a)&&/INPUT|SELECT|TEXTAREA/.test(a.tagName))return;
+  render();
+}
+const MODE_LABEL={off:"Off",heat:"Heat",cool:"Cool",heat_cool:"Auto",auto:"Auto",fan_only:"Fan",dry:"Dry"};
+const camSrc=id=>DEMO?"":`${API}ha/camera_proxy/${id}?t=${Date.now()}`;
+function refreshCams(){pBody.querySelectorAll("img[data-cam]").forEach(img=>{if(!DEMO)img.src=camSrc(img.dataset.cam)})}
+const TV_KEYS={
+  apple:{up:"up",down:"down",left:"left",right:"right",ok:"select",back:"menu",home:"home"},
+  android:{up:"DPAD_UP",down:"DPAD_DOWN",left:"DPAD_LEFT",right:"DPAD_RIGHT",ok:"DPAD_CENTER",back:"BACK",home:"HOME"},
+  roku:{up:"up",down:"down",left:"left",right:"right",ok:"select",back:"back",home:"home"},
+};
+let calCache=null;
+async function loadCalendar(){
+  const cs=calendars();if(!cs.length||DEMO)return;
+  const start=new Date(),end=new Date(Date.now()+7*864e5);
+  const out=[];
+  await Promise.all(cs.map(async c=>{try{
+    const r=await fetch(`${API}ha/calendars/${c.entity_id}?start=${start.toISOString()}&end=${end.toISOString()}`);
+    if(r.ok)(await r.json()).forEach(ev=>out.push({...ev,cal:nm(c)}));
+  }catch(e){}}));
+  out.sort((a,b)=>String(a.start.dateTime||a.start.date).localeCompare(String(b.start.dateTime||b.start.date)));
+  calCache=out;if(current==="calendar")render();
+}
+
+const views={
+  settings(){
+    sub(`${me.name}'s profile`);
+    const opt=v=>`<option value="${esc(v.voiceURI)}" ${me.voice.uri===v.voiceURI?"selected":""}>${esc(v.name)} (${v.lang})</option>`;
+    const gb=voices.filter(isGB),other=voices.filter(v=>!isGB(v));
+    const vOpts=(gb.length?`<optgroup label="British">${gb.map(opt).join("")}</optgroup>`:"")+(other.length?`<optgroup label="Other English">${other.map(opt).join("")}</optgroup>`:"");
+    return `
+    <h3>Profile</h3>
+    <div class="card"><div class="meta" style="margin-bottom:8px">What T.R.A.U.T.H. calls you</div><input class="field" id="sName" maxlength="20" value="${esc(me.name)}"></div>
+    <h3>Orb theme</h3>
+    <div class="swatches">${Object.entries(THEMES).map(([k,t])=>`<button class="sw ${me.theme===k?"on":""}" data-theme="${k}" style="${themeVars(k)}"><i></i><span>${t.name}</span></button>`).join("")}</div>
+    <h3>Voice</h3>
+    <div class="card">
+      <div class="meta" style="margin-bottom:8px">Personality</div>
+      <div class="chips" style="margin-bottom:16px"><button class="chip ${me.style==="proper"?"on":""}" data-style="proper">Proper butler</button><button class="chip ${me.style==="cheeky"?"on":""}" data-style="cheeky">Cheeky</button></div>
+      <div class="row"><div><div class="name">Spoken responses</div><div class="meta">Talks when you tap an orb</div></div><button class="tog ${me.voice.on?"on":""}" data-set="voice"></button></div>
+      <div class="meta" style="margin:14px 0 8px">Voice</div>
+      <select class="field" id="sVoice"><option value="">Automatic (best British voice)</option>${vOpts}</select>
+      <div class="slabel"><span>Speed</span><span id="rateV">${me.voice.rate.toFixed(2)}×</span></div>
+      <input type="range" min="0.7" max="1.4" step="0.05" value="${me.voice.rate}" data-range="rate">
+      <div class="slabel"><span>Pitch</span><span id="pitchV">${me.voice.pitch.toFixed(2)}</span></div>
+      <input type="range" min="0.6" max="1.4" step="0.05" value="${me.voice.pitch}" data-range="pitch">
+      <div style="margin-top:14px"><button class="sm-btn" data-act="testVoice">Test voice</button></div>
+    </div>
+    <h3>Sounds</h3>
+    <div class="card">
+      <div class="row"><div><div class="name">Interface sounds</div><div class="meta">Chimes on taps and actions</div></div><button class="tog ${me.sfx.on?"on":""}" data-set="sfx"></button></div>
+      <div class="slabel"><span>Volume</span><span id="volV">${Math.round(me.sfx.vol*100)}%</span></div>
+      <input type="range" min="0" max="1" step="0.05" value="${me.sfx.vol}" data-range="vol">
+    </div>
+    <h3>My orbs</h3>
+    <div class="meta" style="margin:-2px 0 10px">Tip: press and drag any orb on the main screen to rearrange the ring.</div>
+    <div class="card">${me.order.map(id=>modules.find(m=>m.id===id)).map(m=>`<div class="row" style="padding:7px 0"><div class="name" style="font-size:15px">${m.label}</div><button class="tog ${me.hidden.includes(m.id)?"":"on"}" data-orb="${m.id}" aria-label="Show ${m.label}"></button></div>`).join("")}
+      <div style="margin-top:10px"><button class="sm-btn" data-act="resetOrder">Reset orb order</button></div></div>
+    <h3>Finance passcode</h3>
+    <div class="card"><div class="row"><input class="field" id="sPin" inputmode="numeric" maxlength="4" placeholder="New 4-digit PIN" style="flex:1"><button class="sm-btn" data-act="savePin">Save</button></div></div>
+    <div style="margin-top:26px;display:grid;gap:10px"><button class="big-btn" data-act="switch">Switch profile</button></div>
+    <p class="meta" style="margin-top:18px">${DEMO?"Demo mode — not connected to Home Assistant.":`Connected to Home Assistant${haUser&&haUser.display?" as "+esc(haUser.display):""}. Settings are saved on the Green.`}</p>`;
+  },
+
+  lights(){
+    const L=lightEnts();sub(L.length?`${L.filter(x=>x.state==="on").length} of ${L.length} on`:"Nothing connected yet");
+    if(!L.length)return note("No smart lights or plugs are connected yet. When you add Lutron Caseta switches or smart plugs in Home Assistant, they'll show up here automatically — no app update needed.");
+    return `<div class="chips" style="margin-bottom:6px"><button class="chip" data-lights="on">All on</button><button class="chip" data-lights="off">All off</button></div><h3>Devices</h3>`+
+      L.map(l=>{const on=l.state==="on",br=l.attributes.brightness;return `<div class="card"><div class="row"><div><div class="name">${esc(nm(l))}</div><div class="meta">${!live(l)?"Offline":on?(br!=null?Math.round(br/2.55)+"% brightness":"On"):"Off"}</div></div>
+      <button class="tog ${on?"on":""}" data-toggle="${l.entity_id}"></button></div>
+      ${on&&br!=null?`<input type="range" min="5" max="100" value="${Math.round(br/2.55)}" data-dim="${l.entity_id}">`:""}</div>`}).join("");
+  },
+
+  climate(){
+    const c=climateE();if(!c){sub("");return note("No thermostat found in Home Assistant.")}
+    const a=c.attributes,mode=c.state,w=weatherE();
+    const dual=mode==="heat_cool"||(a.temperature==null&&a.target_temp_low!=null);
+    sub(`${esc(nm(c))}${a.hvac_action?" · "+cap(a.hvac_action):""}`);
+    const big=mode==="off"?"Off":dual?`${r0(a.target_temp_low)}–${r0(a.target_temp_high)}`:`${r0(a.temperature)}<sup>°</sup>`;
+    return `<div class="dial"><div><div class="set" id="setT" style="${dual?"font-size:40px":""}">${big}</div><div class="cap">${esc(MODE_LABEL[mode]||mode)} · ${r0(a.current_temperature)}° now</div></div></div>
+    ${mode==="off"?"":dual?`
+      <div class="card"><div class="row"><span class="name">Heat to</span><span><button class="round" data-tlow="-1">−</button> <b style="font-family:Orbitron;margin:0 10px">${r0(a.target_temp_low)}°</b> <button class="round" data-tlow="1">+</button></span></div></div>
+      <div class="card"><div class="row"><span class="name">Cool to</span><span><button class="round" data-thigh="-1">−</button> <b style="font-family:Orbitron;margin:0 10px">${r0(a.target_temp_high)}°</b> <button class="round" data-thigh="1">+</button></span></div></div>`
+      :`<div class="dial-ctrl"><button class="round" data-temp="-1" aria-label="Lower">−</button><button class="round" data-temp="1" aria-label="Raise">+</button></div>`}
+    <h3>Mode</h3><div class="chips">${(a.hvac_modes||[]).map(m=>`<button class="chip ${mode===m?"on":""}" data-mode="${m}">${esc(MODE_LABEL[m]||cap(m))}</button>`).join("")}</div>
+    ${a.fan_modes&&a.fan_modes.length?`<h3>Fan</h3><div class="chips">${a.fan_modes.map(f=>`<button class="chip ${a.fan_mode===f?"on":""}" data-fan="${esc(f)}">${esc(cap(f))}</button>`).join("")}</div>`:""}
+    <h3>Conditions</h3><div class="stats"><div class="stat"><div class="v">${r0(a.current_temperature)}°</div><div class="k">Inside</div></div><div class="stat"><div class="v">${a.current_humidity!=null?r0(a.current_humidity)+"%":"--"}</div><div class="k">Humidity</div></div><div class="stat"><div class="v">${w?r0(w.attributes.temperature)+"°":"--"}</div><div class="k">Outside</div></div></div>`;
+  },
+
+  cameras(){
+    const C=cams();sub(`${C.length} cameras · snapshots refresh every few seconds`);
+    const sw=dom("switch").filter(s=>/motion_detection/.test(s.entity_id));
+    const b=blinkAlarm();
+    return note("Live snapshots from Ring and Blink. For two-way talk at the door, use the Ring app.","Tip")+
+    `<div class="cams">${C.map(c=>`<div class="cam">${DEMO?"":`<img data-cam="${c.entity_id}" src="${camSrc(c.entity_id)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'" onload="this.style.display=''">`}
+      <span class="tag">${esc(camName(c))}</span><span class="src">${esc(c.state)}</span>${DEMO?`<div class="mid">Snapshot appears here</div>`:""}</div>`).join("")}</div>
+    ${b?`<h3>Blink cameras</h3><div class="chips"><button class="chip ${b.state!=="disarmed"?"on":""}" data-alarm="${b.entity_id}" data-act2="alarm_arm_away">Armed</button><button class="chip ${b.state==="disarmed"?"on":""}" data-alarm="${b.entity_id}" data-act2="alarm_disarm">Disarmed</button></div>`:""}
+    ${sw.length?`<h3>Motion alerts</h3><div class="card">${sw.map(s=>`<div class="row" style="padding:6px 0"><span class="name" style="font-size:15px">${esc(nm(s).replace(/\s*(Camera )?motion detection$/i,""))}</span><button class="tog ${s.state==="on"?"on":""}" data-toggle="${s.entity_id}"></button></div>`).join("")}</div>`:""}`;
+  },
+
+  security(){
+    const a=mainAlarm(),D=doors(),M=motionSensors(),b=blinkAlarm();
+    sub(a?`SimpliSafe · ${alarmLabel(a.state)}`:"No alarm panel found");
+    const needCode=a&&a.attributes.code_format;
+    const dRow=d=>{const st=d.state==="on"?["Open","var(--warn)"]:d.state==="off"?["Closed","var(--ok)"]:["Offline","var(--bad)"];return `<div class="txn"><span>${esc(doorName(d))}</span><span style="color:${st[1]};font-weight:600">${st[0]}</span></div>`};
+    return (a?`<div class="dial" style="width:200px;height:200px"><div><div class="set" style="font-size:24px;text-align:center">${esc(alarmLabel(a.state))}</div><div class="cap">SimpliSafe</div></div></div>
+      ${needCode?`<input class="field" id="secCode" type="password" inputmode="numeric" placeholder="Alarm code" style="margin-bottom:10px">`:""}
+      <div class="chips"><button class="chip ${a.state==="disarmed"?"on":""}" data-arm="alarm_disarm">Disarm</button><button class="chip ${a.state==="armed_home"?"on":""}" data-arm="alarm_arm_home">Arm · Home</button><button class="chip ${a.state==="armed_away"?"on":""}" data-arm="alarm_arm_away">Arm · Away</button></div>
+      <h3>One-tap</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="big-btn" style="font-size:12px" data-combo="leave">Leaving</button><button class="big-btn ghost" data-combo="home">I'm home</button></div>
+      <p class="meta" style="margin-top:8px">Leaving arms SimpliSafe (away)${b?" and Blink":""}. I'm home disarms ${b?"both":"it"}.</p>`:"")+
+    (D.length?`<h3>Doors</h3>${D.map(dRow).join("")}`:"")+
+    (M.length?`<h3>Motion</h3>${M.map(m=>`<div class="txn"><span>${esc(nm(m).replace(/\s*Motion$/i,"").replace(/ Motion/i,""))}</span><span class="meta">${m.state==="on"?"Motion now":m.state==="off"?"Clear":"Offline"}</span></div>`).join("")}`:"");
+  },
+
+  garage(){
+    const g=garageDoor();sub("Garage");
+    const st=!g?"Not found":g.state==="on"?"Open":g.state==="off"?"Closed":"Offline";
+    return `<div class="garage"><div class="gdoor" style="height:${g&&g.state==="on"?"12%":"100%"}"></div></div>
+    <div class="lockmsg" style="margin-bottom:16px">Garage entry door: <b>${st}</b></div>`+
+    note("This shows the SimpliSafe sensor on the garage entry door. Your opener is a Chamberlain/LiftMaster with myQ, which doesn't work with Home Assistant. A small ratgdo board (about $30–50) wired to the opener would let this orb open and close the big door.","Next step");
+  },
+
+  tv(){
+    const p=tvPlayer(),r=tvRemote();if(!p){sub("");return note("No TV found in Home Assistant.")}
+    const a=p.attributes,style=appData.tvStyle||"apple";sub(`${esc(nm(p))} · ${p.state==="off"?"Off":esc(a.app_name||a.source||cap(p.state))}`);
+    return `<div class="remote"><div class="top"><button class="rbtn" style="width:80px" data-tv="power">${p.state==="off"?"POWER":"ON"}</button><button class="rbtn" style="width:80px" data-tv="mute">${a.is_volume_muted?"UNMUTE":"MUTE"}</button></div>
+    ${r?`<div class="dpad"><button class="u" data-key="up">▲</button><button class="l" data-key="left">◀</button><button class="ok" data-key="ok">OK</button><button class="r" data-key="right">▶</button><button class="d" data-key="down">▼</button></div>`:""}
+    <div class="rgrid">${r?`<button class="rbtn" data-key="back">BACK</button><button class="rbtn" data-key="home">HOME</button>`:""}<button class="rbtn" data-tv="play">▶ ❚❚</button>
+    <button class="rbtn" data-tv="vol-">VOL −</button><button class="rbtn" data-tv="vol+">VOL +</button></div></div>
+    ${a.source_list&&a.source_list.length?`<h3>Apps</h3><div class="chips">${a.source_list.slice(0,12).map(s=>`<button class="chip ${a.source===s||a.app_name===s?"on":""}" data-src="${esc(s)}">${esc(s)}</button>`).join("")}</div>`:""}
+    ${r?`<h3>Remote type</h3><div class="chips">${[["apple","Apple TV"],["android","Google / Android TV"],["roku","Roku"]].map(([k,l])=>`<button class="chip ${style===k?"on":""}" data-tvstyle="${k}">${l}</button>`).join("")}</div><p class="meta">If the arrows don't respond, try a different remote type.</p>`:""}`;
+  },
+
+  calendar(){
+    const cs=calendars();
+    if(!cs.length){sub("Not connected yet");return note("No calendar is connected yet. In Home Assistant go to Settings → Devices & services → Add integration → Google Calendar, sign in, and your shared calendar will show up here.","Next step")}
+    sub("Next 7 days");
+    if(DEMO)return note("Calendar events show here when connected.");
+    if(!calCache)return `<p class="meta">Loading…</p>`;
+    if(!calCache.length)return `<p class="meta">Nothing on the calendar this week.</p>`;
+    let html="",lastDay="";
+    calCache.forEach(ev=>{const s=ev.start.dateTime?new Date(ev.start.dateTime):new Date(ev.start.date+"T00:00");
+      const day=s.toLocaleDateString([],{weekday:"long",month:"short",day:"numeric"});
+      if(day!==lastDay){html+=`<div class="day">${day}</div>`;lastDay=day}
+      html+=`<div class="evt"><span class="time">${ev.start.dateTime?s.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"All day"}</span><span>${esc(ev.summary||"(no title)")}</span><span class="who">${esc(ev.cal)}</span></div>`});
+    return html;
+  },
+
+  house(){
+    const od=openDoors(),off=offlineDoors(),lb=lowBatteries();sub("Alerts, chores and notes");
+    const alerts=[...lb.map(b=>`🔋 ${esc(b.name)} battery ${b.pct!=null?b.pct+"%":"low"}`),...od.map(d=>`🚪 ${esc(doorName(d))} is open`),...off.map(d=>`⚠️ ${esc(doorName(d))} sensor offline`)];
+    return `<h3>Alerts</h3>${alerts.length?alerts.map(a=>`<div class="txn"><span>${a}</span></div>`).join(""):`<p class="meta">Nothing needs attention.</p>`}
+    <h3>Chores</h3>${(appData.tasks||[]).map((t,i)=>`<div class="task ${t.done?"done":""}" data-task="${i}"><span class="box"></span><span class="tname">${esc(t.t)}</span><span class="due ${t.done?"ok":t.cls}">${t.done?"Done":esc(t.due)}</span></div>`).join("")}
+    <div class="row" style="margin-top:6px"><input class="field" id="newTask" placeholder="Add a chore" style="flex:1"><button class="sm-btn" data-act="addTask">Add</button></div>
+    <h3>House notes</h3><textarea class="field" id="houseNotes" rows="6" placeholder="Filter sizes, paint colors, breaker map, contractor numbers…" style="resize:vertical">${esc(appData.houseNotes||"")}</textarea>
+    <p class="meta">Notes save automatically and are shared between profiles.</p>`;
+  },
+
+  finance(){
+    if(!fin.unlocked){
+      sub(`Locked · ${me.name}'s passcode`);
+      return `<div class="lockmsg">Enter passcode</div><div class="pin-dots" id="dots">${[0,1,2,3].map(i=>`<i class="${i<fin.pin.length?"f":""}"></i>`).join("")}</div>
+      <div class="keypad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="key" data-k="${n}">${n}</button>`).join("")}<button class="key ghost" data-k="clr">CLEAR</button><button class="key" data-k="0">0</button><button class="key ghost" data-k="del">⌫</button></div>
+      <p class="lockmsg" style="margin-top:22px;font-size:11px">Default PINs · Kyle 1234 · Macy 5678 — change yours in Settings</p>`;
+    }
+    sub("Unlocked · re-locks when closed");
+    return note("Sample numbers for now. Next step: connect your finance dashboard so balances and spending come from your bank CSV uploads.","Coming soon")+
+    `<div class="bal"><div class="stat"><div class="v">—</div><div class="k">Checking</div></div><div class="stat"><div class="v">—</div><div class="k">Savings</div></div><div class="stat"><div class="v">—</div><div class="k">Investments</div></div></div>
+    <button class="big-btn" style="margin-top:20px" data-k="lock">Lock now</button>`;
+  },
+};
+
+/* ---------- Panel interactions ---------- */
+let tempTimer=null;
+function queueTemp(c,payload,label){clearTimeout(tempTimer);tempTimer=setTimeout(()=>{call("climate","set_temperature",{entity_id:c.entity_id,...payload});say("temp",{set:label})},900)}
+pBody.addEventListener("click",async e=>{
+  const t=e.target.closest("button,.task");if(!t)return;const d=t.dataset;
+  /* settings */
+  if(d.theme){me.theme=d.theme;applyTheme(me.theme);save();chime(990);render();say("theme",{theme:THEMES[d.theme].name});return}
+  if(d.style){me.style=d.style;save();chime(900);render();say("style");return}
+  if(d.set==="voice"){me.voice.on=!me.voice.on;save();chime(800);render();say(me.voice.on?"voice_on":"voice_off",{},true);return}
+  if(d.set==="sfx"){me.sfx.on=!me.sfx.on;save();chime(800,true);render();say(me.sfx.on?"sfx_on":"sfx_off");return}
+  if(d.orb){const lbl=modules.find(m=>m.id===d.orb).label,i=me.hidden.indexOf(d.orb);if(i>=0){me.hidden.splice(i,1);say("orb_show",{orb:lbl})}else{if(MODULE_IDS.length-me.hidden.length<=2){toast("Keep at least 2 orbs");return}me.hidden.push(d.orb);say("orb_hide",{orb:lbl})}save();buildSats();chime(760);render();return}
+  if(d.act==="testVoice"){say("test",{},true);return}
+  if(d.act==="resetOrder"){me.order=[...MODULE_IDS];save();buildSats();chime(990);render();say("order_reset");return}
+  if(d.act==="savePin"){const v=document.getElementById("sPin").value.trim();if(!/^\d{4}$/.test(v)){toast("PIN must be 4 digits");say("pin_invalid");return}me.pin=v;save();chime(1100);toast("Passcode updated");render();say("pin_saved");return}
+  if(d.act==="switch"){say("switch");showPicker();return}
+  /* house */
+  if(d.act==="addTask"){const v=document.getElementById("newTask").value.trim();if(!v)return;appData.tasks.push({t:v,due:"To do",cls:"soon",done:false});persist();chime(1000);render();say("task_added");return}
+  if(d.task!==undefined){const k=appData.tasks[d.task];k.done=!k.done;persist();chime(k.done?1100:600);render();say(k.done?"task_done":"task_undone");return}
+  /* lights */
+  if(d.toggle){const ent=HA[d.toggle];const was=ent&&ent.state==="on";chime(was?550:990);
+    const ok=await call(d.toggle.split(".")[0],"toggle",{entity_id:d.toggle});
+    if(ok&&d.toggle.startsWith("switch.")&&/motion_detection/.test(d.toggle))say(was?"cam_motion_off":"cam_motion_on",{cam:nm(ent).replace(/\s*(Camera )?motion detection$/i,"")});
+    else if(ok)say(was?"light_off":"light_on",{room:nm(ent)});return}
+  if(d.lights){const L=lightEnts();for(const l of L)await call(l.entity_id.split(".")[0],d.lights==="on"?"turn_on":"turn_off",{entity_id:l.entity_id});say(d.lights==="on"?"scene_all-on":"scene_all-off");return}
+  /* climate */
+  const c=climateE();
+  if(d.temp&&c){const a=c.attributes;const v=Math.max(a.min_temp||50,Math.min(a.max_temp||90,(a.temperature??72)+Number(d.temp)));HA[c.entity_id].attributes.temperature=v;chime(700+v*4);render();queueTemp(c,{temperature:v},v);return}
+  if((d.tlow||d.thigh)&&c){const a=c.attributes;let lo=a.target_temp_low??68,hi=a.target_temp_high??74;if(d.tlow)lo+=Number(d.tlow);if(d.thigh)hi+=Number(d.thigh);if(hi-lo<3){toast("Keep at least 3° between heat and cool");return}a.target_temp_low=lo;a.target_temp_high=hi;chime(800);render();queueTemp(c,{target_temp_low:lo,target_temp_high:hi},`${lo} to ${hi}`);return}
+  if(d.mode&&c){chime(800);if(await call("climate","set_hvac_mode",{entity_id:c.entity_id,hvac_mode:d.mode}))say("mode_"+d.mode);return}
+  if(d.fan&&c){chime(800);if(await call("climate","set_fan_mode",{entity_id:c.entity_id,fan_mode:d.fan}))say("fan",{fan:d.fan});return}
+  /* security */
+  if(d.arm){const a=mainAlarm();if(!a)return;const codeEl=document.getElementById("secCode");const p={entity_id:a.entity_id};if(codeEl&&codeEl.value)p.code=codeEl.value;chime(700);
+    if(await call("alarm_control_panel",d.arm,p))say(({alarm_disarm:"sec_disarm",alarm_arm_home:"sec_arm_home",alarm_arm_away:"sec_arm_away"})[d.arm]);return}
+  if(d.combo){const a=mainAlarm(),b=blinkAlarm(),codeEl=document.getElementById("secCode");const code=codeEl&&codeEl.value?{code:codeEl.value}:{};chime(700);
+    const svc=d.combo==="leave"?"alarm_arm_away":"alarm_disarm";let ok=true;
+    if(a)ok=await call("alarm_control_panel",svc,{entity_id:a.entity_id,...code})&&ok;
+    if(b)ok=await call("alarm_control_panel",svc,{entity_id:b.entity_id})&&ok;
+    if(ok){const od=openDoors().map(doorName);if(d.combo==="leave"&&od.length)sayText(line("leave")+" "+line("doors_open",{doors:listWords(od.map(x=>x.toLowerCase()))+(od.length>1?" are":" is")}));else say(d.combo==="leave"?"leave":"home_again")}return}
+  if(d.alarm){chime(700);if(await call("alarm_control_panel",d.act2,{entity_id:d.alarm}))say(d.act2==="alarm_disarm"?"sec_disarm":"sec_arm_away");return}
+  /* tv */
+  const p=tvPlayer(),r=tvRemote();
+  if(d.tvstyle){appData.tvStyle=d.tvstyle;persist();chime(800);render();return}
+  if(d.key&&r){chime(900);const k=TV_KEYS[appData.tvStyle||"apple"][d.key];call("remote","send_command",{entity_id:r.entity_id,command:k});return}
+  if(d.tv&&p){chime(900);
+    if(d.tv==="power"){const on=p.state!=="off";if(await call("media_player",on?"turn_off":"turn_on",{entity_id:p.entity_id}))say(on?"tv_off":"tv_on");return}
+    if(d.tv==="mute")return call("media_player","volume_mute",{entity_id:p.entity_id,is_volume_muted:!p.attributes.is_volume_muted});
+    if(d.tv==="vol+")return call("media_player","volume_up",{entity_id:p.entity_id});
+    if(d.tv==="vol-")return call("media_player","volume_down",{entity_id:p.entity_id});
+    if(d.tv==="play")return call("media_player","media_play_pause",{entity_id:p.entity_id});return}
+  if(d.src&&p){chime(900);call("media_player","select_source",{entity_id:p.entity_id,source:d.src});return}
+  /* finance */
+  if(d.k){pinKey(d.k);return}
+});
+pBody.addEventListener("input",e=>{
+  const t=e.target;lastInput=Date.now();
+  if(t.dataset.range==="rate"){me.voice.rate=Number(t.value);document.getElementById("rateV").textContent=me.voice.rate.toFixed(2)+"×";save();return}
+  if(t.dataset.range==="pitch"){me.voice.pitch=Number(t.value);document.getElementById("pitchV").textContent=me.voice.pitch.toFixed(2);save();return}
+  if(t.dataset.range==="vol"){me.sfx.vol=Number(t.value);document.getElementById("volV").textContent=Math.round(me.sfx.vol*100)+"%";save();return}
+  if(t.id==="sName"){const v=t.value.trim();if(v){me.name=v;save();refresh()}return}
+  if(t.id==="houseNotes"){appData.houseNotes=t.value;persist();return}
+});
+pBody.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.id==="sVoice"){me.voice.uri=t.value;save();say("newvoice",{},true)}
+  if(t.id==="sName"){sub(`${me.name}'s profile`);say("name")}
+  if(t.dataset.range==="rate")say("rate",{},true);
+  if(t.dataset.range==="pitch")say("pitch",{},true);
+  if(t.dataset.dim){call("light","turn_on",{entity_id:t.dataset.dim,brightness_pct:Number(t.value)})}
+});
+pBody.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="newTask"){e.preventDefault();pBody.querySelector('[data-act="addTask"]').click()}});
+
+function pinKey(k){
+  if(k==="lock"){lockFinance();render();say("fin_lock");return}
+  if(k==="clr")fin.pin="";else if(k==="del")fin.pin=fin.pin.slice(0,-1);else if(fin.pin.length<4)fin.pin+=k;
+  chime(1000);render();
+  if(fin.pin.length===4){
+    if(fin.pin===String(me.pin)){fin.unlocked=true;fin.pin="";clearTimeout(fin.timer);
+      fin.timer=setTimeout(()=>{lockFinance();if(current==="finance")render();toast("Finances re-locked");say("fin_relock")},120000);
+      setTimeout(()=>{render();say("pin_ok")},180);
+    }else{document.getElementById("dots").classList.add("shake");chime(220);say("pin_bad");setTimeout(()=>{fin.pin="";render()},450)}
+  }
+}
+function lockFinance(){fin.unlocked=false;fin.pin="";clearTimeout(fin.timer);refresh()}
+let tt;function toast(m){const el=document.getElementById("toast");el.textContent=m;el.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>el.classList.remove("show"),2200)}
+
+/* ---------- Boot ---------- */
+async function boot(){
+  applyTheme("arc");tick();setInterval(tick,15000);
+  try{const r=await fetch(API+"ha/states",{cache:"no-store"});if(!r.ok)throw 0;const arr=await r.json();arr.forEach(s=>HA[s.entity_id]=s)}
+  catch(e){DEMO=true;demoStates().forEach(s=>HA[s.entity_id]=s)}
+  let saved={};
+  if(DEMO){try{saved=JSON.parse(localStorage.getItem("trauth.demo")||"{}")}catch(e){}}
+  else{try{saved=await (await fetch(API+"data",{cache:"no-store"})).json()}catch(e){}
+       try{haUser=await (await fetch(API+"me")).json()}catch(e){}}
+  if(saved.profiles&&Object.keys(saved.profiles).length)profiles=saved.profiles;
+  normalizeProfiles();
+  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvStyle:saved.tvStyle||"apple"};
+  const who=haUser&&(haUser.display||haUser.name||"").toLowerCase();
+  const match=who&&Object.values(profiles).find(p=>who.startsWith(p.name.toLowerCase())||who.startsWith(p.id));
+  if(match)selectProfile(match.id);else showPicker();
+  refresh();
+  if(!DEMO)setInterval(pull,5000);
+}
+boot();
+
+</script>
+</body>
+</html>
