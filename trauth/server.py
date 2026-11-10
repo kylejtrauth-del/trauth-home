@@ -11,12 +11,21 @@ Routes
   POST /api/data               -> merge + save app data
   GET  /api/ha/<path>          -> Home Assistant REST API (GET)
   POST /api/ha/<path>          -> Home Assistant REST API (POST)
+  POST /api/update             -> download the newest app screen from GitHub now
 
-App data lives in /data/trauth.json, which Home Assistant backs up.
+Self-updating: the app screen (www/index.html) is downloaded from GitHub
+when the add-on starts and every few hours after, so new versions arrive
+with a restart (or on their own) instead of a Home Assistant add-on update.
+If GitHub can't be reached, the copy bundled with the add-on is used.
+
+App data lives in /share/trauth/trauth.json so it survives reinstalls,
+and is included in Home Assistant backups.
 Only the Python standard library is used.
 """
 
 import json
+import shutil
+import time
 import mimetypes
 import os
 import threading
@@ -28,7 +37,12 @@ PORT = int(os.environ.get("PORT", "8099"))
 TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
 CORE_API = os.environ.get("HA_URL", "http://supervisor/core/api").rstrip("/")
 WWW = os.path.join(os.path.dirname(os.path.abspath(__file__)), "www")
-DATA_FILE = os.environ.get("DATA_FILE", "/data/trauth.json")
+SHARE_DIR = os.environ.get("SHARE_DIR", "/share/trauth")
+DATA_FILE = os.environ.get("DATA_FILE", os.path.join(SHARE_DIR, "trauth.json"))
+LEGACY_DATA = "/data/trauth.json"
+UI_CACHE = os.path.join(SHARE_DIR, "www", "index.html")
+UI_URL = os.environ.get("UI_URL", "https://raw.githubusercontent.com/kylejtrauth-del/trauth-home/main/trauth/www/index.html")
+UI_REFRESH_SECONDS = 3 * 60 * 60
 MAX_BODY = 2_000_000
 
 _lock = threading.Lock()
@@ -49,6 +63,50 @@ def save_data(data):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     os.replace(tmp, DATA_FILE)
+
+
+def migrate_legacy_data():
+    """Move app data from the old /data location to /share (one time)."""
+    try:
+        if not os.path.exists(DATA_FILE) and os.path.exists(LEGACY_DATA):
+            os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+            shutil.copyfile(LEGACY_DATA, DATA_FILE)
+            print("Moved app data to", DATA_FILE, flush=True)
+    except OSError as e:
+        print("Data migration skipped:", e, flush=True)
+
+
+def fetch_ui():
+    """Download the newest app screen from GitHub. Returns True if it changed."""
+    try:
+        req = urllib.request.Request(UI_URL + "?t=" + str(int(time.time())), headers={"Cache-Control": "no-cache"})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            body = resp.read()
+        text = body.decode("utf-8", "replace")
+        if resp.status != 200 or "<!DOCTYPE html>" not in text[:200] or "T.R.A.U.T.H." not in text:
+            raise ValueError("unexpected content")
+        old = b""
+        if os.path.exists(UI_CACHE):
+            with open(UI_CACHE, "rb") as f:
+                old = f.read()
+        if body == old:
+            return False
+        os.makedirs(os.path.dirname(UI_CACHE), exist_ok=True)
+        tmp = UI_CACHE + ".tmp"
+        with open(tmp, "wb") as f:
+            f.write(body)
+        os.replace(tmp, UI_CACHE)
+        print("App screen updated from GitHub", flush=True)
+        return True
+    except Exception as e:
+        print("App screen update skipped:", e, flush=True)
+        return False
+
+
+def ui_updater():
+    while True:
+        fetch_ui()
+        time.sleep(UI_REFRESH_SECONDS)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -124,6 +182,9 @@ class Handler(BaseHTTPRequestHandler):
         p = self._path()
         if p.startswith("/api/ha/"):
             return self._relay("POST")
+        if p == "/api/update":
+            changed = fetch_ui()
+            return self._json(200, {"updated": changed})
         if p == "/api/data":
             try:
                 patch = json.loads(self._body() or b"{}")
@@ -140,6 +201,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _static(self, p):
         rel = "index.html" if p in ("", "/") else p.lstrip("/")
+        if rel == "index.html" and os.path.isfile(UI_CACHE):
+            with open(UI_CACHE, "rb") as f:
+                return self._send(200, f.read(), "text/html; charset=utf-8")
         full = os.path.realpath(os.path.join(WWW, rel))
         if not full.startswith(os.path.realpath(WWW) + os.sep) or not os.path.isfile(full):
             return self._json(404, {"error": "not found"})
@@ -149,5 +213,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    migrate_legacy_data()
+    threading.Thread(target=ui_updater, daemon=True).start()
     print(f"T.R.A.U.T.H. listening on port {PORT}", flush=True)
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

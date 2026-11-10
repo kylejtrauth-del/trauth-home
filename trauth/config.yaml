@@ -1,5 +1,5 @@
 name: "T.R.A.U.T.H."
-version: "1.1.1"
+version: "1.2.0"
 slug: trauth
 description: "Total Residential Automation & Utility Tracking Hub — Kyle and Macy's home app"
 url: "https://github.com/kylejtrauth-del/trauth-home"
@@ -14,3 +14,6 @@ ingress_port: 8099
 panel_icon: mdi:orbit
 panel_title: TRAUTH
 homeassistant_api: true
+map:
+  - type: share
+    read_only: false

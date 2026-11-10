@@ -13,7 +13,9 @@
 
 ## Updating
 
-When a new version is pushed here, Home Assistant shows **Update** on the add-on. Tap it. Your profiles, chores and notes are kept in the add-on's `/data` folder and included in Home Assistant backups.
+From 1.2.0 on, T.R.A.U.T.H. updates itself. The app screen downloads from this repository when the add-on starts and every 3 hours, and **Settings → App → Check now** pulls it immediately. Server changes (rare) still use the add-on **Update**.
+
+App data (profiles, chores, notes, sensor choices) is stored in `/share/trauth/`, so it survives reinstalls and is included in backups.
 
 ## British voice (Piper)
 

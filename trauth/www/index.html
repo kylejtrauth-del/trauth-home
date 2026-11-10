@@ -438,6 +438,7 @@ let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=set
    web page), the app runs in DEMO mode with Kyle's devices
    mocked so everything can still be clicked through.
    ========================================================= */
+const APP_VERSION="1.2.0";
 const API="api/";
 let DEMO=false, ONLINE=true, HA={}, haUser=null;
 let appData={};
@@ -857,6 +858,8 @@ const views={
     <div class="card">${me.order.map(id=>modules.find(m=>m.id===id)).map(m=>`<div class="row" style="padding:7px 0"><div class="name" style="font-size:15px">${m.label}</div><button class="tog ${me.hidden.includes(m.id)?"":"on"}" data-orb="${m.id}" aria-label="Show ${m.label}"></button></div>`).join("")}
       <div style="margin-top:10px"><button class="sm-btn" data-act="resetOrder">Reset orb order</button></div></div>
     <div style="margin-top:26px;display:grid;gap:10px"><button class="big-btn" data-act="switch">Switch profile</button></div>
+    <h3>App</h3>
+    <div class="card"><div class="row"><div><div class="name">Version ${APP_VERSION}</div><div class="meta">Updates download automatically from GitHub</div></div><button class="sm-btn" data-act="checkUpdate">Check now</button></div></div>
     <p class="meta" style="margin-top:18px">${DEMO?"Demo mode — not connected to Home Assistant.":`Connected to Home Assistant${haUser&&haUser.display?" as "+esc(haUser.display):""}. Settings are saved on the Green.`}</p>`;
   },
 
@@ -974,6 +977,8 @@ pBody.addEventListener("click",async e=>{
   if(d.act==="testVoice"){say("test",{},true);return}
   if(d.act==="resetOrder"){me.order=[...MODULE_IDS];save();buildSats();chime(990);render();say("order_reset");return}
   if(d.act==="savePin"){const v=document.getElementById("sPin").value.trim();if(!/^\d{4}$/.test(v)){toast("PIN must be 4 digits");say("pin_invalid");return}me.pin=v;save();chime(1100);toast("Passcode updated");render();say("pin_saved");return}
+  if(d.act==="checkUpdate"){if(DEMO){toast("Demo mode");return}toast("Checking for updates…");
+    try{const r=await (await fetch(API+"update",{method:"POST"})).json();if(r.updated){toast("Updated! Reloading…");setTimeout(()=>location.reload(),900)}else toast("You're on the newest version")}catch(e){toast("Couldn't check for updates")}return}
   if(d.act==="switch"){say("switch");showPicker();return}
   if(d.ignore){const L=appData.ignored||(appData.ignored=[]);const i=L.indexOf(d.ignore);if(i>=0)L.splice(i,1);else L.push(d.ignore);persist();chime(800);render();refresh();return}
   /* house */
