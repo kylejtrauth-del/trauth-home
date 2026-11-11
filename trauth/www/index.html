@@ -438,7 +438,7 @@ let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=set
    web page), the app runs in DEMO mode with Kyle's devices
    mocked so everything can still be clicked through.
    ========================================================= */
-const APP_VERSION="1.2.4";
+const APP_VERSION="1.2.5";
 const API="api/";
 let DEMO=false, ONLINE=true, HA={}, haUser=null;
 let appData={};
@@ -503,6 +503,8 @@ function tvKeys(){if(appData.tvKeys)return appData.tvKeys;const r=tvRemote();
   const vz=dom("media_player").some(m=>Array.isArray(m.attributes.source_list)&&m.attributes.source_list.some(x=>/^(hdmi|cast|smartcast|comp|tv)\b/i.test(String(x))));
   if(vz||dom("media_player").length>1)return "vizio";
   return "apple"}
+const FAV_APPS=[["ESPN",/^espn\b/i],["YouTube",/^youtube$/i],["YouTube TV",/^youtube ?tv$/i],["Hulu",/^hulu/i],["Disney+",/^disney(\+| ?plus)/i],["Netflix",/^netflix/i],["HBO Max",/^(hbo ?max|max)$/i],["Prime Video",/(prime video|amazon prime)/i]];
+function favApps(list){return FAV_APPS.map(([label,re])=>({label,match:list.find(x=>re.test(String(x).trim()))||null}))}
 function tvApps(){const r=tvRemote();if(r&&Array.isArray(r.attributes.activity_list)&&r.attributes.activity_list.length)return {kind:"activity",list:r.attributes.activity_list,cur:r.attributes.current_activity};
   const tp=tvPlayer();const p=(tp&&Array.isArray(tp.attributes.source_list)&&tp.attributes.source_list.length)?tp:dom("media_player").find(x=>Array.isArray(x.attributes.source_list)&&x.attributes.source_list.length);return p?{kind:"source",player:p,list:p.attributes.source_list,cur:p.attributes.source||p.attributes.app_name}:null}
 function calendars(){return dom("calendar")}
@@ -545,7 +547,7 @@ async function call(domain,service,payload){
 function persist(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
-    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvKeys:appData.tvKeys||null,ignored:appData.ignored||[]};
+    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvKeys:appData.tvKeys||null,showAllApps:!!appData.showAllApps,ignored:appData.ignored||[]};
     if(DEMO){try{localStorage.setItem("trauth.demo",JSON.stringify(payload))}catch(e){};return}
     try{await fetch(API+"data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})}catch(e){toast("Couldn't save settings")}
   },400);
@@ -944,7 +946,11 @@ const views={
     ${r?`<div class="dpad"><button class="u" data-key="up">▲</button><button class="l" data-key="left">◀</button><button class="ok" data-key="ok">OK</button><button class="r" data-key="right">▶</button><button class="d" data-key="down">▼</button></div>`:""}
     <div class="rgrid">${r?`<button class="rbtn" data-key="back">BACK</button><button class="rbtn" data-key="home">HOME</button>`:""}<button class="rbtn" data-tv="play">▶ ❚❚</button>
     <button class="rbtn" data-tv="vol-">VOL −</button><button class="rbtn" data-tv="vol+">VOL +</button></div></div>
-    ${apps?`<h3>Apps</h3><div class="chips">${apps.list.slice(0,14).map(x=>`<button class="chip ${apps.cur===x?"on":""}" data-app="${esc(x)}">${esc(x)}</button>`).join("")}</div>`:""}
+    ${apps?(()=>{const fav=favApps(apps.list);const shown=appData.showAllApps?apps.list:fav.map(f=>f.match).filter(Boolean);
+      const missing=appData.showAllApps?[]:fav.filter(f=>!f.match).map(f=>f.label);
+      return `<h3>Apps</h3><div class="chips">${shown.map(x=>`<button class="chip ${apps.cur===x?"on":""}" data-app="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+      ${missing.length?`<p class="meta">Your TV didn't list: ${esc(missing.join(", "))}. Open ${missing.length>1?"those":"it"} from the TV's main menu.</p>`:""}
+      <div style="margin-top:8px"><button class="sm-btn" data-act="toggleApps">${appData.showAllApps?"Show my apps only":"Show all apps & inputs"}</button></div>`})():""}
     ${r?`<h3>Remote type</h3><div class="chips">${[["vizio","Vizio"],["android","Google / Android TV"],["apple","Apple TV"],["roku","Roku"]].map(([k,l])=>`<button class="chip ${style===k?"on":""}" data-tvstyle="${k}">${l}</button>`).join("")}</div><p class="meta">Picked automatically${appData.tvKeys?" (you changed it)":""}. If arrows or Home don't respond, try another type.</p>`:""}`;
   },
 
@@ -1020,6 +1026,7 @@ pBody.addEventListener("click",async e=>{
   if(d.alarm){chime(700);if(await call("alarm_control_panel",d.act2,{entity_id:d.alarm}))say(d.act2==="alarm_disarm"?"sec_disarm":"sec_arm_away");return}
   /* tv */
   const p=tvPlayer(),r=tvRemote();
+  if(d.act==="toggleApps"){appData.showAllApps=!appData.showAllApps;persist();render();return}
   if(d.tvstyle){appData.tvKeys=d.tvstyle;persist();chime(800);render();return}
   if(d.key&&r){chime(900);const style=tvKeys();let k=TV_KEYS[style][d.key];
     if(style==="vizio"&&d.key==="home"){
@@ -1075,7 +1082,7 @@ async function boot(){
        try{haUser=await (await fetch(API+"me")).json()}catch(e){}}
   if(saved.profiles&&Object.keys(saved.profiles).length)profiles=saved.profiles;
   normalizeProfiles();
-  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvKeys:saved.tvKeys||null,
+  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvKeys:saved.tvKeys||null,showAllApps:!!saved.showAllApps,
     ignored:Array.isArray(saved.ignored)?saved.ignored:Object.keys(HA).filter(id=>DEFAULT_IGNORED_RE.test(id))};
   const who=haUser&&(haUser.display||haUser.name||"").toLowerCase();
   const match=who&&Object.values(profiles).find(p=>who.startsWith(p.name.toLowerCase())||who.startsWith(p.id));
