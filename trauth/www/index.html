@@ -176,6 +176,22 @@
   .day{font-family:'Orbitron';font-size:11px;letter-spacing:.2em;color:var(--cyan);margin:16px 0 8px;text-transform:uppercase}
   .evt{display:flex;gap:12px;align-items:center;padding:10px 12px;border-left:2px solid var(--cyan);background:rgba(var(--deep),.3);border-radius:0 10px 10px 0;margin-bottom:8px}
   .evt .time{font-family:'Orbitron';font-size:12px;color:var(--cyan-hi);min-width:62px}
+  .calhead{display:flex;gap:6px;align-items:center;margin-bottom:12px}
+  .calchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .calchip{display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--muted);cursor:pointer;opacity:.55}
+  .calchip.on{opacity:1;color:inherit;border-color:var(--cc)}
+  .calchip .dot{width:9px;height:9px;border-radius:50%;background:var(--cc)}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:6px}
+  .calgrid .dow{text-align:center;font-family:'Orbitron';font-size:10px;color:var(--muted);padding:4px 0}
+  .cday{min-height:64px;display:flex;flex-direction:column;align-items:stretch;gap:2px;padding:4px 3px;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:rgba(var(--deep),.25);color:inherit;cursor:pointer;text-align:left;overflow:hidden;font:inherit}
+  .cday.out{opacity:.35}
+  .cday .dn{font-size:12px;font-family:'Orbitron'}
+  .cday.today .dn{color:var(--cyan-hi);font-weight:700}
+  .cday.sel{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
+  .cday .cdots{display:none;gap:2px}.cday .cdots i{width:6px;height:6px;border-radius:50%}
+  .cday .cev{font-size:10px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:2px solid var(--cc);padding-left:3px}
+  .cday .cmore{font-size:10px;color:var(--muted)}
+  @media (max-width:520px){.cday{min-height:46px;align-items:center}.cday .cev,.cday .cmore{display:none}.cday .cdots{display:flex}}
   .evt .who{margin-left:auto;font-size:11px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
   .task{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer}
   .task .box{width:20px;height:20px;border-radius:6px;border:1px solid var(--cyan);flex:none;display:grid;place-items:center}
@@ -438,7 +454,7 @@ let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=set
    web page), the app runs in DEMO mode with Kyle's devices
    mocked so everything can still be clicked through.
    ========================================================= */
-const APP_VERSION="1.2.7";
+const APP_VERSION="1.2.8";
 const API="api/";
 let DEMO=false, ONLINE=true, HA={}, haUser=null;
 let appData={};
@@ -512,6 +528,27 @@ const DEFAULT_CAL_RE=/birthday|family|holiday|kylejtrauth/i;
 function allCalendars(){return dom("calendar")}
 function calOn(c){return Array.isArray(appData.calOn)?appData.calOn.includes(c.entity_id):DEFAULT_CAL_RE.test(c.entity_id+" "+nm(c))}
 function calendars(){return allCalendars().filter(calOn)}
+function canWrite(c){const f=c.attributes.supported_features;return f!=null?!!(f&1):!/holiday|birthday/i.test(c.entity_id)}
+function writableCals(){const w=calendars().filter(canWrite);return w.length?w:allCalendars().filter(canWrite)}
+let addingEvt=false;
+function pad2(n){return String(n).padStart(2,"0")}
+function evtForm(){const ws=writableCals();if(!ws.length)return `<p class="meta">None of your calendars accept new events.</p>`;
+  const now=new Date(),base=calSel?new Date(calSel+"T"+pad2(now.getHours())+":00"):now;
+  const t=new Date(base);t.setMinutes(0,0,0);t.setHours(t.getHours()+(calSel&&calSel!==ymd(now)?0:1));if(calSel&&calSel!==ymd(now))t.setHours(9);
+  const t2=new Date(t.getTime()+36e5),hm=x=>`${pad2(x.getHours())}:${pad2(x.getMinutes())}`;
+  const pref=ws.find(c=>/kylejtrauth|family/i.test(c.entity_id))||ws[0];
+  return `<div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">Add event</h3>
+    <input class="field" id="evTitle" placeholder="Title" maxlength="120" style="margin-bottom:10px">
+    <textarea class="field" id="evDesc" rows="2" placeholder="Description (optional)" style="margin-bottom:10px"></textarea>
+    <input class="field" id="evLoc" placeholder="Location (optional)" style="margin-bottom:10px">
+    <div class="meta" style="margin-bottom:4px">Calendar</div>
+    <select class="field" id="evCal" style="margin-bottom:10px">${ws.map(c=>`<option value="${c.entity_id}" ${c===pref?"selected":""}>${esc(nm(c))}</option>`).join("")}</select>
+    <label class="meta" style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="evAllDay"> All day</label>
+    <div class="meta" style="margin-bottom:4px">Start</div>
+    <div class="row" style="gap:8px;margin-bottom:10px"><input class="field" id="evDate" type="date" value="${ymd(t)}" style="flex:1.3"><input class="field ev-t" id="evStart" type="time" value="${hm(t)}" style="flex:1"></div>
+    <div class="meta" style="margin-bottom:4px">End</div>
+    <div class="row" style="gap:8px;margin-bottom:12px"><input class="field" id="evEndDate" type="date" value="${ymd(t2)}" style="flex:1.3"><input class="field ev-t" id="evEnd" type="time" value="${hm(t2)}" style="flex:1"></div>
+    <div class="row" style="gap:8px"><button class="sm-btn" data-act="saveEvt">Save</button><button class="sm-btn" data-act="cancelEvt">Cancel</button></div></div>`}
 function garageDoor(){return doors().find(d=>/garage/i.test(d.entity_id))||null}
 function openDoors(){return doors().filter(d=>d.state==="on")}
 function offlineDoors(){return doors().filter(d=>d.state==="unavailable")}
@@ -823,15 +860,27 @@ const TV_KEYS={
   roku:{up:"up",down:"down",left:"left",right:"right",ok:"select",back:"back",home:"home"},
   vizio:{up:"up",down:"down",left:"left",right:"right",ok:"ok",back:"back",home:"smartcast"},
 };
-let calCache=null;
+let calCache=null,calMonth=null,calSel=null;
+const CAL_COLORS=["#4fd1ff","#ff9f43","#7bed9f","#ff6b81","#a29bfe","#ffd166","#48dbfb"];
+function calColor(id){const i=allCalendars().findIndex(c=>c.entity_id===id);return CAL_COLORS[(i<0?0:i)%CAL_COLORS.length]}
+function ymd(d){return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`}
+function gridStart(){const m=calMonth||(calMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1));const g=new Date(m);g.setDate(1-m.getDay());return g}
+function evDays(ev){/* list of yyyy-mm-dd the event covers */
+  const allDay=!ev.start.dateTime;const s=allDay?new Date(ev.start.date+"T00:00"):new Date(ev.start.dateTime);
+  let e=allDay?new Date((ev.end&&ev.end.date||ev.start.date)+"T00:00"):new Date(ev.end&&ev.end.dateTime||ev.start.dateTime);
+  if(allDay)e.setDate(e.getDate()-1);else e=new Date(e.getTime()-1);
+  const out=[],d=new Date(s.getFullYear(),s.getMonth(),s.getDate());for(let n=0;n<62&&d<=e;n++){out.push(ymd(d));d.setDate(d.getDate()+1)}
+  return out.length?out:[ymd(s)]}
+let calLoadSeq=0;
 async function loadCalendar(){
-  const cs=calendars();if(!cs.length||DEMO)return;
-  const start=new Date(),end=new Date(Date.now()+7*864e5);
+  const cs=calendars();if(!cs.length||DEMO)return;const seq=++calLoadSeq;
+  const start=gridStart(),end=new Date(start);end.setDate(end.getDate()+42);
   const out=[];
   await Promise.all(cs.map(async c=>{try{
     const r=await fetch(`${API}ha/calendars/${c.entity_id}?start=${start.toISOString()}&end=${end.toISOString()}`);
-    if(r.ok)(await r.json()).forEach(ev=>out.push({...ev,cal:nm(c)}));
+    if(r.ok)(await r.json()).forEach(ev=>out.push({...ev,cal:nm(c),calId:c.entity_id}));
   }catch(e){}}));
+  if(seq!==calLoadSeq)return;
   out.sort((a,b)=>String(a.start.dateTime||a.start.date).localeCompare(String(b.start.dateTime||b.start.date)));
   calCache=out;if(current==="calendar")render();
 }
@@ -959,20 +1008,23 @@ const views={
 
   calendar(){
     const all=allCalendars();
-    const picker=all.length?`<h3 style="margin-top:22px">Calendars shown</h3><div class="card">${all.map(c=>`<div class="row" style="padding:6px 0"><span class="name" style="font-size:14px">${esc(nm(c))}</span><button class="tog ${calOn(c)?"on":""}" data-cal="${c.entity_id}" aria-label="Show"></button></div>`).join("")}</div>`:"";
-    const cs=calendars();
     if(!all.length){sub("Not connected yet");return note("No calendar is connected yet. In Home Assistant go to Settings → Devices & services → Add integration → Google Calendar, sign in, and your shared calendar will show up here.","Next step")}
-    sub("Next 7 days");
-    if(DEMO)return note("Calendar events show here when connected.");
-    if(!calCache)return `<p class="meta">Loading…</p>`;
-    if(!cs.length)return `<p class="meta">All calendars are switched off.</p>`+picker;
-    if(!calCache.length)return `<p class="meta">Nothing on the calendar this week.</p>`+picker;
-    let html="",lastDay="";
-    calCache.forEach(ev=>{const s=ev.start.dateTime?new Date(ev.start.dateTime):new Date(ev.start.date+"T00:00");
-      const day=s.toLocaleDateString([],{weekday:"long",month:"short",day:"numeric"});
-      if(day!==lastDay){html+=`<div class="day">${day}</div>`;lastDay=day}
-      html+=`<div class="evt"><span class="time">${ev.start.dateTime?s.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"All day"}</span><span>${esc(ev.summary||"(no title)")}</span><span class="who">${esc(ev.cal)}</span></div>`});
-    return html+picker;
+    const m=calMonth||(calMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1));const today=ymd(new Date());if(!calSel)calSel=today;
+    sub(m.toLocaleDateString([],{month:"long",year:"numeric"}));
+    const chips=`<div class="calchips">${all.map(c=>`<button class="calchip ${calOn(c)?"on":""}" data-cal="${c.entity_id}" style="--cc:${calColor(c.entity_id)}"><span class="dot"></span>${esc(nm(c))}</button>`).join("")}</div>`;
+    const head=`<div class="calhead"><button class="sm-btn" data-calnav="-1" aria-label="Previous month">‹</button><button class="sm-btn" data-calnav="0">Today</button><button class="sm-btn" data-calnav="1" aria-label="Next month">›</button><span style="flex:1"></span><button class="sm-btn" data-act="newEvt">+ Add event</button></div>`;
+    if(DEMO)return head+note("Calendar events show here when connected.");
+    const byDay={};(calCache||[]).forEach(ev=>evDays(ev).forEach(d=>(byDay[d]=byDay[d]||[]).push(ev)));
+    const g=gridStart();let grid=`<div class="calgrid">${["S","M","T","W","T","F","S"].map(x=>`<div class="dow">${x}</div>`).join("")}`;
+    for(let n=0;n<42;n++){const d=new Date(g);d.setDate(g.getDate()+n);const k=ymd(d),evs=byDay[k]||[];
+      if(n===35&&d.getMonth()!==m.getMonth())break;
+      grid+=`<button class="cday ${d.getMonth()!==m.getMonth()?"out":""} ${k===today?"today":""} ${k===calSel?"sel":""}" data-day="${k}"><span class="dn">${d.getDate()}</span><span class="cdots">${evs.slice(0,4).map(ev=>`<i style="background:${calColor(ev.calId)}"></i>`).join("")}</span>${evs.slice(0,2).map(ev=>`<span class="cev" style="--cc:${calColor(ev.calId)}">${esc(ev.summary||"")}</span>`).join("")}${evs.length>2?`<span class="cmore">+${evs.length-2}</span>`:""}</button>`}
+    grid+=`</div>`;
+    const sel=new Date(calSel+"T00:00"),list=byDay[calSel]||[];
+    let day=`<div class="day">${sel.toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>`;
+    day+=!calCache?`<p class="meta">Loading…</p>`:list.length?list.map(ev=>{const s=ev.start.dateTime?new Date(ev.start.dateTime):null;
+      return `<div class="evt" style="border-left-color:${calColor(ev.calId)}"><span class="time">${s?s.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"All day"}</span><span>${esc(ev.summary||"(no title)")}${ev.location?`<br><span class="meta">${esc(ev.location)}</span>`:""}</span><span class="who">${esc(ev.cal)}</span></div>`}).join(""):`<p class="meta">Nothing on this day.</p>`;
+    return head+(addingEvt?evtForm():"")+chips+grid+day;
   },
 
   house(){
@@ -1005,6 +1057,21 @@ pBody.addEventListener("click",async e=>{
   if(d.act==="checkUpdate"){if(DEMO){toast("Demo mode");return}toast("Checking for updates…");
     try{const r=await (await fetch(API+"update",{method:"POST"})).json();if(r.updated){toast("Updated! Reloading…");setTimeout(()=>location.reload(),900)}else toast("You're on the newest version")}catch(e){toast("Couldn't check for updates")}return}
   if(d.act==="switch"){say("switch");showPicker();return}
+  if(d.calnav!=null){const n=+d.calnav;if(n===0){const t=new Date();calMonth=new Date(t.getFullYear(),t.getMonth(),1);calSel=ymd(t)}else{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+n,1);calSel=ymd(calMonth)}calCache=null;render();loadCalendar();return}
+  if(d.day){calSel=d.day;const x=new Date(d.day+"T00:00");if(x.getMonth()!==calMonth.getMonth()){calMonth=new Date(x.getFullYear(),x.getMonth(),1);calCache=null;render();loadCalendar();return}render();return}
+  if(d.act==="newEvt"){addingEvt=true;render();setTimeout(()=>{const t=document.getElementById("evTitle");t&&t.focus()},50);return}
+  if(d.act==="cancelEvt"){addingEvt=false;render();return}
+  if(d.act==="saveEvt"){const g=id=>document.getElementById(id);const title=g("evTitle").value.trim(),date=g("evDate").value;let endDate=g("evEndDate").value||date;
+    if(!title){toast("Give the event a title first");return}if(!date){toast("Pick a start date");return}
+    if(endDate<date)endDate=date;
+    const p={entity_id:g("evCal").value,summary:title};const desc=g("evDesc").value.trim(),loc=g("evLoc").value.trim();if(desc)p.description=desc;if(loc)p.location=loc;
+    if(g("evAllDay").checked){const n=new Date(endDate+"T12:00");n.setDate(n.getDate()+1);p.start_date=date;p.end_date=ymd(n)}
+    else{const st=g("evStart").value||"09:00";let en=g("evEnd").value||st;
+      if(endDate+"T"+en<=date+"T"+st){const x=new Date(`${date}T${st}`);x.setHours(x.getHours()+1);endDate=ymd(x);en=`${pad2(x.getHours())}:${pad2(x.getMinutes())}`}
+      p.start_date_time=`${date} ${st}:00`;p.end_date_time=`${endDate} ${en}:00`}
+    const btn=t;btn.disabled=true;
+    if(await call("calendar","create_event",p)){addingEvt=false;calSel=date;chime(1000);toast("Added to "+nm(HA[p.entity_id]||{entity_id:p.entity_id}));render();setTimeout(loadCalendar,1200)}
+    else btn.disabled=false;return}
   if(d.cal){const L=Array.isArray(appData.calOn)?appData.calOn:(appData.calOn=allCalendars().filter(calOn).map(c=>c.entity_id));const i=L.indexOf(d.cal);if(i>=0)L.splice(i,1);else L.push(d.cal);persist();chime(800);calCache=null;render();loadCalendar();return}
   if(d.ignore){const L=appData.ignored||(appData.ignored=[]);const i=L.indexOf(d.ignore);if(i>=0)L.splice(i,1);else L.push(d.ignore);persist();chime(800);render();refresh();return}
   /* house */
@@ -1073,6 +1140,7 @@ pBody.addEventListener("change",e=>{
   if(t.dataset.range==="pitch")say("pitch",{},true);
   if(t.dataset.dim){call("light","turn_on",{entity_id:t.dataset.dim,brightness_pct:Number(t.value)})}
 });
+pBody.addEventListener("change",e=>{if(e.target.id==="evAllDay")pBody.querySelectorAll(".ev-t").forEach(x=>x.style.display=e.target.checked?"none":"");if(e.target.id==="evDate"){const ed=document.getElementById("evEndDate");if(ed&&ed.value<e.target.value)ed.value=e.target.value}});
 pBody.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="newTask"){e.preventDefault();pBody.querySelector('[data-act="addTask"]').click()}});
 
 let tt;function toast(m){const el=document.getElementById("toast");el.textContent=m;el.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>el.classList.remove("show"),2200)}
