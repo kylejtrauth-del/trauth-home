@@ -438,7 +438,7 @@ let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=set
    web page), the app runs in DEMO mode with Kyle's devices
    mocked so everything can still be clicked through.
    ========================================================= */
-const APP_VERSION="1.2.0";
+const APP_VERSION="1.2.1";
 const API="api/";
 let DEMO=false, ONLINE=true, HA={}, haUser=null;
 let appData={};
@@ -493,8 +493,16 @@ function doors(){return allDoors().filter(s=>!isIgnored(s.entity_id))}
 function allMotion(){return dom("binary_sensor").filter(s=>!/battery/i.test(s.entity_id)&&(s.attributes.device_class==="motion"||/_motion(_motion)?$/.test(s.entity_id)))}
 function motionSensors(){return allMotion().filter(s=>!isIgnored(s.entity_id))}
 function lightEnts(){return [...dom("light"),...dom("switch").filter(s=>!/motion|camera|siren|blink|ring/i.test(s.entity_id))]}
-function tvPlayer(){const m=dom("media_player");return m.find(x=>live(x)&&x.state!=="off")||m[0]||null}
 function tvRemote(){return dom("remote")[0]||null}
+function tvPlayer(){const m=dom("media_player"),r=tvRemote();
+  if(r){const same=HA["media_player."+r.entity_id.split(".")[1]];if(same)return same}
+  return m.find(x=>live(x)&&x.state!=="off")||m[0]||null}
+function tvOn(){const r=tvRemote(),p=tvPlayer();if(r&&live(r))return r.state==="on";return !!p&&!["off","standby","unavailable","unknown"].includes(p.state)}
+function tvKeys(){if(appData.tvKeys)return appData.tvKeys;const r=tvRemote();
+  if(r&&(r.attributes.activity_list||r.attributes.current_activity!==undefined))return "android";
+  return dom("media_player").length>1?"android":"apple"}
+function tvApps(){const r=tvRemote();if(r&&Array.isArray(r.attributes.activity_list)&&r.attributes.activity_list.length)return {kind:"activity",list:r.attributes.activity_list,cur:r.attributes.current_activity};
+  const p=dom("media_player").find(x=>Array.isArray(x.attributes.source_list)&&x.attributes.source_list.length);return p?{kind:"source",player:p,list:p.attributes.source_list,cur:p.attributes.source||p.attributes.app_name}:null}
 function calendars(){return dom("calendar")}
 function garageDoor(){return doors().find(d=>/garage/i.test(d.entity_id))||null}
 function openDoors(){return doors().filter(d=>d.state==="on")}
@@ -535,7 +543,7 @@ async function call(domain,service,payload){
 function persist(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
-    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvStyle:appData.tvStyle||"apple",ignored:appData.ignored||[]};
+    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvKeys:appData.tvKeys||null,ignored:appData.ignored||[]};
     if(DEMO){try{localStorage.setItem("trauth.demo",JSON.stringify(payload))}catch(e){};return}
     try{await fetch(API+"data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})}catch(e){toast("Couldn't save settings")}
   },400);
@@ -628,7 +636,7 @@ const modules=[
   {id:"cameras",label:"Cameras",icon:I.cameras,val:()=>`${cams().length} cams`},
   {id:"security",label:"Security",icon:I.security,val:()=>{const a=mainAlarm();return a?alarmLabel(a.state):"—"}},
   {id:"garage",label:"Garage",icon:I.garage,val:()=>{const g=garageDoor();return !g?"—":g.state==="on"?"Door open":g.state==="off"?"Closed":"Offline"}},
-  {id:"tv",label:"TV",icon:I.tv,val:()=>{const p=tvPlayer();return p?(p.state==="off"?"Off":"On"):"—"}},
+  {id:"tv",label:"TV",icon:I.tv,val:()=>(tvPlayer()||tvRemote())?(tvOn()?"On":"Off"):"—"},
   {id:"calendar",label:"Calendar",icon:I.calendar,val:()=>calendars().length?"This week":"Connect"},
   {id:"house",label:"House",icon:I.house,val:()=>{const n=alertCount();return n?`${n} alert${n>1?"s":""}`:"All good"}},
 ];
@@ -925,14 +933,16 @@ const views={
   },
 
   tv(){
-    const p=tvPlayer(),r=tvRemote();if(!p){sub("");return note("No TV found in Home Assistant.")}
-    const a=p.attributes,style=appData.tvStyle||"apple";sub(`${esc(nm(p))} · ${p.state==="off"?"Off":esc(a.app_name||a.source||cap(p.state))}`);
-    return `<div class="remote"><div class="top"><button class="rbtn" style="width:80px" data-tv="power">${p.state==="off"?"POWER":"ON"}</button><button class="rbtn" style="width:80px" data-tv="mute">${a.is_volume_muted?"UNMUTE":"MUTE"}</button></div>
+    const p=tvPlayer(),r=tvRemote();if(!p&&!r){sub("");return note("No TV found in Home Assistant.")}
+    const a=(p&&p.attributes)||{},on=tvOn(),style=tvKeys(),apps=tvApps();
+    const now=apps&&apps.cur?apps.cur:(a.app_name||a.media_title||"");
+    sub(`${esc(nm(p||r))} · ${on?(now?esc(now):"On"):"Off"}`);
+    return `<div class="remote"><div class="top"><button class="rbtn" style="width:96px;${on?"border-color:var(--cyan-hi);box-shadow:0 0 12px rgba(var(--c),.5)":""}" data-tv="power">${on?"⏻ ON":"⏻ OFF"}</button><button class="rbtn" style="width:96px" data-tv="mute">${a.is_volume_muted?"UNMUTE":"MUTE"}</button></div>
     ${r?`<div class="dpad"><button class="u" data-key="up">▲</button><button class="l" data-key="left">◀</button><button class="ok" data-key="ok">OK</button><button class="r" data-key="right">▶</button><button class="d" data-key="down">▼</button></div>`:""}
     <div class="rgrid">${r?`<button class="rbtn" data-key="back">BACK</button><button class="rbtn" data-key="home">HOME</button>`:""}<button class="rbtn" data-tv="play">▶ ❚❚</button>
     <button class="rbtn" data-tv="vol-">VOL −</button><button class="rbtn" data-tv="vol+">VOL +</button></div></div>
-    ${a.source_list&&a.source_list.length?`<h3>Apps</h3><div class="chips">${a.source_list.slice(0,12).map(s=>`<button class="chip ${a.source===s||a.app_name===s?"on":""}" data-src="${esc(s)}">${esc(s)}</button>`).join("")}</div>`:""}
-    ${r?`<h3>Remote type</h3><div class="chips">${[["apple","Apple TV"],["android","Google / Android TV"],["roku","Roku"]].map(([k,l])=>`<button class="chip ${style===k?"on":""}" data-tvstyle="${k}">${l}</button>`).join("")}</div><p class="meta">If the arrows don't respond, try a different remote type.</p>`:""}`;
+    ${apps?`<h3>Apps</h3><div class="chips">${apps.list.slice(0,14).map(x=>`<button class="chip ${apps.cur===x?"on":""}" data-app="${esc(x)}">${esc(x)}</button>`).join("")}</div>`:""}
+    ${r?`<h3>Remote type</h3><div class="chips">${[["android","Google / Android TV"],["apple","Apple TV"],["roku","Roku"]].map(([k,l])=>`<button class="chip ${style===k?"on":""}" data-tvstyle="${k}">${l}</button>`).join("")}</div><p class="meta">Picked automatically${appData.tvKeys?" (you changed it)":""}. If arrows or Home don't respond, try another type.</p>`:""}`;
   },
 
   calendar(){
@@ -1007,15 +1017,20 @@ pBody.addEventListener("click",async e=>{
   if(d.alarm){chime(700);if(await call("alarm_control_panel",d.act2,{entity_id:d.alarm}))say(d.act2==="alarm_disarm"?"sec_disarm":"sec_arm_away");return}
   /* tv */
   const p=tvPlayer(),r=tvRemote();
-  if(d.tvstyle){appData.tvStyle=d.tvstyle;persist();chime(800);render();return}
-  if(d.key&&r){chime(900);const k=TV_KEYS[appData.tvStyle||"apple"][d.key];call("remote","send_command",{entity_id:r.entity_id,command:k});return}
+  if(d.tvstyle){appData.tvKeys=d.tvstyle;persist();chime(800);render();return}
+  if(d.key&&r){chime(900);const k=TV_KEYS[tvKeys()][d.key];call("remote","send_command",{entity_id:r.entity_id,command:k});return}
+  if(d.tv==="power"&&(p||r)){chime(900);const on=tvOn();
+    const ok=r?await call("remote",on?"turn_off":"turn_on",{entity_id:r.entity_id}):await call("media_player",on?"turn_off":"turn_on",{entity_id:p.entity_id});
+    if(ok){say(on?"tv_off":"tv_on");if(r&&HA[r.entity_id])HA[r.entity_id]={...HA[r.entity_id],state:on?"off":"on"};render();refresh()}return}
+  if(d.tv==="play"&&r&&tvKeys()==="android"){chime(900);call("remote","send_command",{entity_id:r.entity_id,command:"MEDIA_PLAY_PAUSE"});return}
   if(d.tv&&p){chime(900);
-    if(d.tv==="power"){const on=p.state!=="off";if(await call("media_player",on?"turn_off":"turn_on",{entity_id:p.entity_id}))say(on?"tv_off":"tv_on");return}
     if(d.tv==="mute")return call("media_player","volume_mute",{entity_id:p.entity_id,is_volume_muted:!p.attributes.is_volume_muted});
     if(d.tv==="vol+")return call("media_player","volume_up",{entity_id:p.entity_id});
     if(d.tv==="vol-")return call("media_player","volume_down",{entity_id:p.entity_id});
     if(d.tv==="play")return call("media_player","media_play_pause",{entity_id:p.entity_id});return}
-  if(d.src&&p){chime(900);call("media_player","select_source",{entity_id:p.entity_id,source:d.src});return}
+  if(d.app){const apps=tvApps();chime(900);if(!apps)return;
+    if(apps.kind==="activity")call("remote","turn_on",{entity_id:r.entity_id,activity:d.app});
+    else call("media_player","select_source",{entity_id:apps.player.entity_id,source:d.app});return}
 });
 pBody.addEventListener("input",e=>{
   const t=e.target;lastInput=Date.now();
@@ -1049,7 +1064,7 @@ async function boot(){
        try{haUser=await (await fetch(API+"me")).json()}catch(e){}}
   if(saved.profiles&&Object.keys(saved.profiles).length)profiles=saved.profiles;
   normalizeProfiles();
-  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvStyle:saved.tvStyle||"apple",
+  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvKeys:saved.tvKeys||null,
     ignored:Array.isArray(saved.ignored)?saved.ignored:Object.keys(HA).filter(id=>DEFAULT_IGNORED_RE.test(id))};
   const who=haUser&&(haUser.display||haUser.name||"").toLowerCase();
   const match=who&&Object.values(profiles).find(p=>who.startsWith(p.name.toLowerCase())||who.startsWith(p.id));
