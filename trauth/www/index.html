@@ -438,7 +438,7 @@ let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=set
    web page), the app runs in DEMO mode with Kyle's devices
    mocked so everything can still be clicked through.
    ========================================================= */
-const APP_VERSION="1.2.3";
+const APP_VERSION="1.2.4";
 const API="api/";
 let DEMO=false, ONLINE=true, HA={}, haUser=null;
 let appData={};
@@ -1022,8 +1022,11 @@ pBody.addEventListener("click",async e=>{
   const p=tvPlayer(),r=tvRemote();
   if(d.tvstyle){appData.tvKeys=d.tvstyle;persist();chime(800);render();return}
   if(d.key&&r){chime(900);const style=tvKeys();let k=TV_KEYS[style][d.key];
-    if(style==="vizio"&&d.key==="home"){k=["exit","smartcast"];const p2=tvPlayer();const cast=p2&&(p2.attributes.source_list||[]).find(x=>/^(smartcast|cast)$/i.test(String(x)));
-      if(cast&&p2.attributes.source&&!/^(smartcast|cast)$/i.test(String(p2.attributes.source)))call("media_player","select_source",{entity_id:p2.entity_id,source:cast})}
+    if(style==="vizio"&&d.key==="home"){
+      const p2=tvPlayer(),list=(p2&&p2.attributes.source_list)||[];
+      const home=list.find(x=>/smartcast home|^home$|vizio home/i.test(String(x)));
+      if(home){call("media_player","select_source",{entity_id:p2.entity_id,source:home});return}
+      k=["exit","exit"];}
     call("remote","send_command",{entity_id:r.entity_id,command:k});return}
   if(d.tv==="power"&&(p||r)){chime(900);const on=tvOn();
     const ok=r?await call("remote",on?"turn_off":"turn_on",{entity_id:r.entity_id}):await call("media_player",on?"turn_off":"turn_on",{entity_id:p.entity_id});
