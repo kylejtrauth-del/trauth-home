@@ -454,7 +454,7 @@ let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=set
    web page), the app runs in DEMO mode with Kyle's devices
    mocked so everything can still be clicked through.
    ========================================================= */
-const APP_VERSION="1.2.8";
+const APP_VERSION="1.2.9";
 const API="api/";
 let DEMO=false, ONLINE=true, HA={}, haUser=null;
 let appData={};
@@ -526,7 +526,7 @@ function tvApps(){const r=tvRemote();if(r&&Array.isArray(r.attributes.activity_l
   const tp=tvPlayer();const p=(tp&&Array.isArray(tp.attributes.source_list)&&tp.attributes.source_list.length)?tp:dom("media_player").find(x=>Array.isArray(x.attributes.source_list)&&x.attributes.source_list.length);return p?{kind:"source",player:p,list:p.attributes.source_list,cur:p.attributes.source||p.attributes.app_name}:null}
 const DEFAULT_CAL_RE=/birthday|family|holiday|kylejtrauth/i;
 function allCalendars(){return dom("calendar")}
-function calOn(c){return Array.isArray(appData.calOn)?appData.calOn.includes(c.entity_id):DEFAULT_CAL_RE.test(c.entity_id+" "+nm(c))}
+function calOn(c){const L=me&&Array.isArray(me.calOn)?me.calOn:null;return L?L.includes(c.entity_id):DEFAULT_CAL_RE.test(c.entity_id+" "+nm(c))}
 function calendars(){return allCalendars().filter(calOn)}
 function canWrite(c){const f=c.attributes.supported_features;return f!=null?!!(f&1):!/holiday|birthday/i.test(c.entity_id)}
 function writableCals(){const w=calendars().filter(canWrite);return w.length?w:allCalendars().filter(canWrite)}
@@ -588,12 +588,22 @@ async function call(domain,service,payload){
 function persist(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
-    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvKeys:appData.tvKeys||null,showAllApps:!!appData.showAllApps,ignored:appData.ignored||[],calOn:Array.isArray(appData.calOn)?appData.calOn:null};
+    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvKeys:appData.tvKeys||null,ignored:appData.ignored||[]};
     if(DEMO){try{localStorage.setItem("trauth.demo",JSON.stringify(payload))}catch(e){};return}
-    try{await fetch(API+"data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})}catch(e){toast("Couldn't save settings")}
+    try{
+      /* only this device's profile is written; everyone else's comes fresh from the Green */
+      let fresh={};try{fresh=await (await fetch(API+"data",{cache:"no-store"})).json()}catch(e){}
+      const merged=Object.assign({},(fresh&&fresh.profiles)||{});
+      Object.keys(profiles).forEach(id=>{if(!merged[id]||(me&&id===me.id))merged[id]=profiles[id]});
+      Object.keys(merged).forEach(id=>{if(!me||id!==me.id)profiles[id]=merged[id]});
+      normalizeProfiles();
+      payload.profiles=merged;
+      const r=await fetch(API+"data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(!r.ok)throw 0}
+    catch(e){toast("Couldn't save settings")}
   },400);
 }
 function save(){persist()}
+async function refreshProfiles(){if(DEMO)return;try{const f=await (await fetch(API+"data",{cache:"no-store"})).json();if(f&&f.profiles){Object.keys(f.profiles).forEach(id=>{if(!me||id!==me.id)profiles[id]=f.profiles[id]});normalizeProfiles()}}catch(e){}}
 
 /* ---------- Demo mode (Kyle's devices, mocked) ---------- */
 function demoStates(){
@@ -793,6 +803,7 @@ coreWrap.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" ")coreWrap
 const picker=document.getElementById("picker");
 function showPicker(){
   closePanel(true);
+  refreshProfiles().then(()=>{const el=document.getElementById("avatars");if(el&&el.children.length)el.querySelectorAll(".av").forEach(b=>{const p=profiles[b.dataset.p];if(p)b.setAttribute("style",themeVars(p.theme))})});
   document.getElementById("avatars").innerHTML=Object.values(profiles).map(p=>
     `<button class="av" data-p="${p.id}" style="${themeVars(p.theme)}"><span class="orb">${(p.name[0]||"?").toUpperCase()}</span><span class="nm">${esc(p.name)}</span></button>`).join("");
   picker.classList.remove("hide");
@@ -1050,7 +1061,7 @@ pBody.addEventListener("click",async e=>{
   if(d.style){me.style=d.style;save();chime(900);render();say("style");return}
   if(d.set==="voice"){me.voice.on=!me.voice.on;save();chime(800);render();say(me.voice.on?"voice_on":"voice_off",{},true);return}
   if(d.set==="sfx"){me.sfx.on=!me.sfx.on;save();chime(800,true);render();say(me.sfx.on?"sfx_on":"sfx_off");return}
-  if(d.orb){const lbl=modules.find(m=>m.id===d.orb).label,i=me.hidden.indexOf(d.orb);if(i>=0){me.hidden.splice(i,1);say("orb_show",{orb:lbl})}else{if(MODULE_IDS.length-me.hidden.length<=2){toast("Keep at least 2 orbs");return}me.hidden.push(d.orb);say("orb_hide",{orb:lbl})}save();buildSats();chime(760);render();return}
+  if(d.orb){const lbl=modules.find(m=>m.id===d.orb).label,i=me.hidden.indexOf(d.orb);if(i>=0){me.hidden.splice(i,1);say("orb_show",{orb:lbl})}else{if(MODULE_IDS.length-me.hidden.length<=1){toast("Keep at least one orb");return}me.hidden.push(d.orb);say("orb_hide",{orb:lbl})}save();buildSats();chime(760);render();return}
   if(d.act==="testVoice"){say("test",{},true);return}
   if(d.act==="resetOrder"){me.order=[...MODULE_IDS];save();buildSats();chime(990);render();say("order_reset");return}
   if(d.act==="savePin"){const v=document.getElementById("sPin").value.trim();if(!/^\d{4}$/.test(v)){toast("PIN must be 4 digits");say("pin_invalid");return}me.pin=v;save();chime(1100);toast("Passcode updated");render();say("pin_saved");return}
@@ -1072,7 +1083,7 @@ pBody.addEventListener("click",async e=>{
     const btn=t;btn.disabled=true;
     if(await call("calendar","create_event",p)){addingEvt=false;calSel=date;chime(1000);toast("Added to "+nm(HA[p.entity_id]||{entity_id:p.entity_id}));render();setTimeout(loadCalendar,1200)}
     else btn.disabled=false;return}
-  if(d.cal){const L=Array.isArray(appData.calOn)?appData.calOn:(appData.calOn=allCalendars().filter(calOn).map(c=>c.entity_id));const i=L.indexOf(d.cal);if(i>=0)L.splice(i,1);else L.push(d.cal);persist();chime(800);calCache=null;render();loadCalendar();return}
+  if(d.cal){const L=Array.isArray(me.calOn)?me.calOn:(me.calOn=allCalendars().filter(calOn).map(c=>c.entity_id));const i=L.indexOf(d.cal);if(i>=0)L.splice(i,1);else L.push(d.cal);persist();chime(800);calCache=null;render();loadCalendar();return}
   if(d.ignore){const L=appData.ignored||(appData.ignored=[]);const i=L.indexOf(d.ignore);if(i>=0)L.splice(i,1);else L.push(d.ignore);persist();chime(800);render();refresh();return}
   /* house */
   if(d.act==="addTask"){const v=document.getElementById("newTask").value.trim();if(!v)return;appData.tasks.push({t:v,due:"To do",cls:"soon",done:false});persist();chime(1000);render();say("task_added");return}
@@ -1156,7 +1167,8 @@ async function boot(){
        try{haUser=await (await fetch(API+"me")).json()}catch(e){}}
   if(saved.profiles&&Object.keys(saved.profiles).length)profiles=saved.profiles;
   normalizeProfiles();
-  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvKeys:saved.tvKeys||null,showAllApps:!!saved.showAllApps,calOn:Array.isArray(saved.calOn)?saved.calOn:null,
+  if(Array.isArray(saved.calOn))Object.values(profiles).forEach(p=>{if(!Array.isArray(p.calOn))p.calOn=[...saved.calOn]});
+  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvKeys:saved.tvKeys||null,showAllApps:!!saved.showAllApps,
     ignored:Array.isArray(saved.ignored)?saved.ignored:Object.keys(HA).filter(id=>DEFAULT_IGNORED_RE.test(id))};
   const who=haUser&&(haUser.display||haUser.name||"").toLowerCase();
   const match=who&&Object.values(profiles).find(p=>who.startsWith(p.name.toLowerCase())||who.startsWith(p.id));
