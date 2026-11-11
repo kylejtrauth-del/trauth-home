@@ -438,7 +438,7 @@ let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=set
    web page), the app runs in DEMO mode with Kyle's devices
    mocked so everything can still be clicked through.
    ========================================================= */
-const APP_VERSION="1.2.6";
+const APP_VERSION="1.2.7";
 const API="api/";
 let DEMO=false, ONLINE=true, HA={}, haUser=null;
 let appData={};
@@ -508,7 +508,10 @@ const FAV_APPS=[["ESPN",/^espn$/i],["YouTube",/^youtube$/i],["YouTube TV",/^yout
 function favApps(list){return FAV_APPS.map(([label,re])=>({label,match:list.find(x=>re.test(String(x).trim()))||null}))}
 function tvApps(){const r=tvRemote();if(r&&Array.isArray(r.attributes.activity_list)&&r.attributes.activity_list.length)return {kind:"activity",list:r.attributes.activity_list,cur:r.attributes.current_activity};
   const tp=tvPlayer();const p=(tp&&Array.isArray(tp.attributes.source_list)&&tp.attributes.source_list.length)?tp:dom("media_player").find(x=>Array.isArray(x.attributes.source_list)&&x.attributes.source_list.length);return p?{kind:"source",player:p,list:p.attributes.source_list,cur:p.attributes.source||p.attributes.app_name}:null}
-function calendars(){return dom("calendar")}
+const DEFAULT_CAL_RE=/birthday|family|holiday|kylejtrauth/i;
+function allCalendars(){return dom("calendar")}
+function calOn(c){return Array.isArray(appData.calOn)?appData.calOn.includes(c.entity_id):DEFAULT_CAL_RE.test(c.entity_id+" "+nm(c))}
+function calendars(){return allCalendars().filter(calOn)}
 function garageDoor(){return doors().find(d=>/garage/i.test(d.entity_id))||null}
 function openDoors(){return doors().filter(d=>d.state==="on")}
 function offlineDoors(){return doors().filter(d=>d.state==="unavailable")}
@@ -548,7 +551,7 @@ async function call(domain,service,payload){
 function persist(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
-    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvKeys:appData.tvKeys||null,showAllApps:!!appData.showAllApps,ignored:appData.ignored||[]};
+    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvKeys:appData.tvKeys||null,showAllApps:!!appData.showAllApps,ignored:appData.ignored||[],calOn:Array.isArray(appData.calOn)?appData.calOn:null};
     if(DEMO){try{localStorage.setItem("trauth.demo",JSON.stringify(payload))}catch(e){};return}
     try{await fetch(API+"data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})}catch(e){toast("Couldn't save settings")}
   },400);
@@ -955,18 +958,21 @@ const views={
   },
 
   calendar(){
+    const all=allCalendars();
+    const picker=all.length?`<h3 style="margin-top:22px">Calendars shown</h3><div class="card">${all.map(c=>`<div class="row" style="padding:6px 0"><span class="name" style="font-size:14px">${esc(nm(c))}</span><button class="tog ${calOn(c)?"on":""}" data-cal="${c.entity_id}" aria-label="Show"></button></div>`).join("")}</div>`:"";
     const cs=calendars();
-    if(!cs.length){sub("Not connected yet");return note("No calendar is connected yet. In Home Assistant go to Settings → Devices & services → Add integration → Google Calendar, sign in, and your shared calendar will show up here.","Next step")}
+    if(!all.length){sub("Not connected yet");return note("No calendar is connected yet. In Home Assistant go to Settings → Devices & services → Add integration → Google Calendar, sign in, and your shared calendar will show up here.","Next step")}
     sub("Next 7 days");
     if(DEMO)return note("Calendar events show here when connected.");
     if(!calCache)return `<p class="meta">Loading…</p>`;
-    if(!calCache.length)return `<p class="meta">Nothing on the calendar this week.</p>`;
+    if(!cs.length)return `<p class="meta">All calendars are switched off.</p>`+picker;
+    if(!calCache.length)return `<p class="meta">Nothing on the calendar this week.</p>`+picker;
     let html="",lastDay="";
     calCache.forEach(ev=>{const s=ev.start.dateTime?new Date(ev.start.dateTime):new Date(ev.start.date+"T00:00");
       const day=s.toLocaleDateString([],{weekday:"long",month:"short",day:"numeric"});
       if(day!==lastDay){html+=`<div class="day">${day}</div>`;lastDay=day}
       html+=`<div class="evt"><span class="time">${ev.start.dateTime?s.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"All day"}</span><span>${esc(ev.summary||"(no title)")}</span><span class="who">${esc(ev.cal)}</span></div>`});
-    return html;
+    return html+picker;
   },
 
   house(){
@@ -999,6 +1005,7 @@ pBody.addEventListener("click",async e=>{
   if(d.act==="checkUpdate"){if(DEMO){toast("Demo mode");return}toast("Checking for updates…");
     try{const r=await (await fetch(API+"update",{method:"POST"})).json();if(r.updated){toast("Updated! Reloading…");setTimeout(()=>location.reload(),900)}else toast("You're on the newest version")}catch(e){toast("Couldn't check for updates")}return}
   if(d.act==="switch"){say("switch");showPicker();return}
+  if(d.cal){const L=Array.isArray(appData.calOn)?appData.calOn:(appData.calOn=allCalendars().filter(calOn).map(c=>c.entity_id));const i=L.indexOf(d.cal);if(i>=0)L.splice(i,1);else L.push(d.cal);persist();chime(800);calCache=null;render();loadCalendar();return}
   if(d.ignore){const L=appData.ignored||(appData.ignored=[]);const i=L.indexOf(d.ignore);if(i>=0)L.splice(i,1);else L.push(d.ignore);persist();chime(800);render();refresh();return}
   /* house */
   if(d.act==="addTask"){const v=document.getElementById("newTask").value.trim();if(!v)return;appData.tasks.push({t:v,due:"To do",cls:"soon",done:false});persist();chime(1000);render();say("task_added");return}
@@ -1081,7 +1088,7 @@ async function boot(){
        try{haUser=await (await fetch(API+"me")).json()}catch(e){}}
   if(saved.profiles&&Object.keys(saved.profiles).length)profiles=saved.profiles;
   normalizeProfiles();
-  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvKeys:saved.tvKeys||null,showAllApps:!!saved.showAllApps,
+  appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvKeys:saved.tvKeys||null,showAllApps:!!saved.showAllApps,calOn:Array.isArray(saved.calOn)?saved.calOn:null,
     ignored:Array.isArray(saved.ignored)?saved.ignored:Object.keys(HA).filter(id=>DEFAULT_IGNORED_RE.test(id))};
   const who=haUser&&(haUser.display||haUser.name||"").toLowerCase();
   const match=who&&Object.values(profiles).find(p=>who.startsWith(p.name.toLowerCase())||who.startsWith(p.id));
