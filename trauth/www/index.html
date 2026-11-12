@@ -149,6 +149,10 @@
   .stat .k{font-size:11px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-top:3px}
   /* cameras */
   .cams{display:grid;gap:10px}
+  button.cam{width:100%;padding:0;color:inherit;font:inherit;cursor:pointer;text-align:left}
+  .cam .last{position:absolute;bottom:10px;left:12px;font-size:11px;letter-spacing:.08em;z-index:1;background:rgba(0,0,0,.45);padding:2px 7px;border-radius:6px}
+  .cam.big{aspect-ratio:16/10}
+  a.sm-btn{text-decoration:none;display:inline-flex;align-items:center;color:inherit}
   .cam{aspect-ratio:16/9;border-radius:14px;border:1px solid var(--cyan-dim);position:relative;overflow:hidden;background:linear-gradient(160deg,rgba(var(--deep),.5),#030b18)}
   .cam::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg, rgba(var(--c),.06) 0 2px, transparent 2px 4px)}
   .cam .tag{position:absolute;top:10px;left:12px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;font-weight:600}
@@ -454,7 +458,7 @@ let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=set
    web page), the app runs in DEMO mode with Kyle's devices
    mocked so everything can still be clicked through.
    ========================================================= */
-const APP_VERSION="1.2.9";
+const APP_VERSION="1.3.0";
 const API="api/";
 let DEMO=false, ONLINE=true, HA={}, haUser=null;
 let appData={};
@@ -513,6 +517,18 @@ function tvRemote(){return dom("remote")[0]||null}
 function tvPlayer(){const m=dom("media_player"),r=tvRemote();
   if(r){const same=HA["media_player."+r.entity_id.split(".")[1]];if(same)return same}
   return m.find(x=>live(x)&&x.state!=="off")||m[0]||null}
+/* one notch of volume. Vizio: the remote's own volume key (1 step). Others: nudge the level by 1%. */
+function tvVolStep(dir){const r=tvRemote(),p=tvPlayer();
+  if(r&&tvKeys()==="vizio")return call("remote","send_command",{entity_id:r.entity_id,command:dir>0?"vol_up":"vol_down"});
+  if(p&&typeof p.attributes.volume_level==="number"){const v=Math.max(0,Math.min(1,Math.round((p.attributes.volume_level+dir*0.01)*100)/100));
+    HA[p.entity_id]={...p,attributes:{...p.attributes,volume_level:v}};return call("media_player","volume_set",{entity_id:p.entity_id,volume_level:v})}
+  if(p)return call("media_player",dir>0?"volume_up":"volume_down",{entity_id:p.entity_id})}
+/* press and hold the volume buttons to keep going */
+let volHold=null;
+document.addEventListener("pointerdown",e=>{const b=e.target.closest&&e.target.closest('[data-tv="vol+"],[data-tv="vol-"]');if(!b)return;
+  clearTimeout(volHold);b._held=false;const dir=b.dataset.tv==="vol+"?1:-1;
+  volHold=setTimeout(function rep(){b._held=true;tvVolStep(dir);volHold=setTimeout(rep,350)},500)});
+["pointerup","pointercancel","pointerleave"].forEach(ev=>document.addEventListener(ev,()=>{clearTimeout(volHold);volHold=null;setTimeout(()=>document.querySelectorAll('[data-tv="vol+"],[data-tv="vol-"]').forEach(b=>b._held=false),50)}));
 function tvOn(){const r=tvRemote(),p=tvPlayer();if(r&&live(r))return r.state==="on";return !!p&&!["off","standby","unavailable","unknown"].includes(p.state)}
 function tvKeys(){if(appData.tvKeys)return appData.tvKeys;const r=tvRemote();
   if(r&&(r.attributes.activity_list||r.attributes.current_activity!==undefined))return "android";
@@ -827,14 +843,14 @@ function openModule(id){
   const m=modules.find(x=>x.id===id);
   document.getElementById("pTitle").textContent=m?m.label:"Settings";
   render();panel.classList.add("open");scrim.classList.add("show");panel.setAttribute("aria-hidden","false");
-  clearInterval(camTimer);if(id==="cameras")camTimer=setInterval(refreshCams,4000);
+  clearInterval(camTimer);if(id==="cameras")camTimer=setInterval(refreshCams,1500);
   if(id==="calendar")loadCalendar();
   sayOpen(id);
 }
 function closePanel(){
   panel.classList.remove("open");scrim.classList.remove("show");panel.setAttribute("aria-hidden","true");
   satEls.forEach(el=>el.classList.remove("active"));links.querySelectorAll("line").forEach(l=>l.classList.remove("hot"));
-  clearInterval(camTimer);
+  clearInterval(camTimer);camOpen=null;
   current=null;refresh();
 }
 document.getElementById("closeBtn").onclick=()=>closePanel();scrim.onclick=()=>closePanel();
@@ -864,7 +880,35 @@ function softRender(force){
 }
 const MODE_LABEL={off:"Off",heat:"Heat",cool:"Cool",heat_cool:"Auto",auto:"Auto",fan_only:"Fan",dry:"Dry"};
 const camSrc=id=>DEMO?"":`${API}ha/camera_proxy/${id}?t=${Date.now()}`;
-function refreshCams(){pBody.querySelectorAll("img[data-cam]").forEach(img=>{if(!DEMO)img.src=camSrc(img.dataset.cam)})}
+let camTick=0;
+function refreshCams(){if(DEMO)return;camTick++;
+  pBody.querySelectorAll("img[data-cam]").forEach(img=>{if(!img.dataset.fast&&camTick%3)return;
+    const n=new Image();n.onload=()=>{img.src=n.src;img.style.display=""};n.src=camSrc(img.dataset.cam)})}
+let camOpen=null,camHist={},camHistAt={};
+function camBase(c){return c.entity_id.replace(/^camera\./,"").replace(/_live_view$/,"")}
+function camActivityEnts(c){const b=camBase(c);return all().filter(x=>/^(binary_sensor|event|sensor)\./.test(x.entity_id)&&x.entity_id.split(".")[1].startsWith(b)&&/motion|ding|last_activity|doorbell/i.test(x.entity_id)&&!/detection|battery/.test(x.entity_id))}
+function isBlinkCam(c){const br=String(c.attributes.brand||"");if(/blink/i.test(br))return true;if(/ring/i.test(br))return false;return !/_live_view$/.test(c.entity_id)&&!!blinkAlarm()}
+function isTs(v){return typeof v==="string"&&/^\d{4}-\d\d-\d\dT/.test(v)}
+function lastActivity(c){let best=null;camActivityEnts(c).forEach(x=>{let t=null,k="Motion";
+    if(x.entity_id.startsWith("binary_sensor."))t=x.state==="on"?new Date():x.last_changed?new Date(x.last_changed):null;
+    else if(isTs(x.state)){t=new Date(x.state);if(x.entity_id.startsWith("event.")&&/ding|ring|press/i.test(String(x.attributes.event_type||x.entity_id)))k="Doorbell";else if(x.entity_id.startsWith("sensor."))k="Activity"}
+    if(t&&!isNaN(t)&&(!best||t>best.t))best={t,k}});return best}
+function ago(t){const s=Math.round((Date.now()-t)/1000);if(s<60)return "just now";if(s<3600)return Math.round(s/60)+" min ago";if(s<86400)return Math.round(s/3600)+" hr ago";const n=Math.round(s/86400);return n+" day"+(n>1?"s":"")+" ago"}
+async function loadCamHistory(c){const ents=camActivityEnts(c);if(!ents.length||DEMO){camHist[c.entity_id]=[];return}
+  const start=new Date(Date.now()-7*864e5).toISOString();
+  try{const r=await fetch(`${API}ha/history/period/${encodeURIComponent(start)}?filter_entity_id=${ents.map(e=>e.entity_id).join(",")}&end_time=${encodeURIComponent(new Date().toISOString())}`);
+    const data=r.ok?await r.json():[];const out=[];
+    (data||[]).forEach(series=>{let prev=null;(series||[]).forEach(st=>{const id=st.entity_id||(series[0]&&series[0].entity_id)||"";const v=st.state;
+      if(id.startsWith("binary_sensor.")){if(v==="on"&&prev!=="on")out.push({t:new Date(st.last_changed),k:"Motion"})}
+      else if(isTs(v)&&v!==prev){const ding=id.startsWith("event.")&&/ding|ring|press/i.test(String((st.attributes&&st.attributes.event_type)||id));
+        out.push({t:new Date(v),k:ding?"Doorbell":id.startsWith("sensor.")?"Activity":"Motion"})}
+      prev=v})});
+    const seen=new Set();camHist[c.entity_id]=out.filter(e=>!isNaN(e.t)&&e.t>Date.now()-7*864e5).sort((a,b)=>b.t-a.t).filter(e=>{const k=Math.round(e.t/30000);if(seen.has(k))return false;seen.add(k);return true}).slice(0,60)}
+  catch(e){camHist[c.entity_id]=null}
+  camHistAt[c.entity_id]=Date.now();if(current==="cameras"&&camOpen===c.entity_id)render()}
+function openLive(id){try{const ha=window.parent.document.querySelector("home-assistant");if(!ha)throw 0;
+    ha.dispatchEvent(new CustomEvent("hass-more-info",{detail:{entityId:id},bubbles:true,composed:true}));return true}
+  catch(e){toast("Live view needs the Home Assistant app");return false}}
 const TV_KEYS={
   apple:{up:"up",down:"down",left:"left",right:"right",ok:"select",back:"menu",home:"home"},
   android:{up:"DPAD_UP",down:"DPAD_DOWN",left:"DPAD_LEFT",right:"DPAD_RIGHT",ok:"DPAD_CENTER",back:"BACK",home:"HOME"},
@@ -896,6 +940,21 @@ async function loadCalendar(){
   calCache=out;if(current==="calendar")render();
 }
 
+function camViewer(c){const blink=isBlinkCam(c);sub(`${camName(c)} · ${blink?"Blink":"Ring"}`);
+  if(camHist[c.entity_id]===undefined||Date.now()-(camHistAt[c.entity_id]||0)>60000){camHistAt[c.entity_id]=Date.now();loadCamHistory(c)}
+  const h=camHist[c.entity_id];
+  const byDay={};(h||[]).forEach(e=>{const d=e.t.toLocaleDateString([],{weekday:"long",month:"short",day:"numeric"});(byDay[d]=byDay[d]||[]).push(e)});
+  const icon=k=>k==="Doorbell"?"🔔":k==="Activity"?"📷":"🚶";
+  return `<div class="row" style="margin-bottom:10px"><button class="sm-btn" data-act="camBack">‹ All cameras</button></div>
+  <div class="cam big">${DEMO?`<div class="mid">Snapshot appears here</div>`:`<img data-cam="${c.entity_id}" data-fast="1" src="${camSrc(c.entity_id)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000" onerror="this.style.display='none'">`}<span class="tag">${esc(camName(c))}</span></div>
+  <div class="row" style="gap:8px;margin:12px 0;flex-wrap:wrap">
+    ${blink?`<button class="sm-btn" data-act="blinkSnap" data-cam="${c.entity_id}">📸 Take new snapshot</button><a class="sm-btn" href="immedia-blink://" target="_blank" rel="noopener">Open in Blink</a>`
+      :`<button class="sm-btn" data-act="camLive" data-cam="${c.entity_id}">▶ Live video</button><a class="sm-btn" href="ring://" target="_blank" rel="noopener">Open in Ring</a>`}
+  </div>
+  <p class="meta">${blink?"Blink only sends Home Assistant still photos, so this picture can be old. Tap Take new snapshot for a fresh one (it takes about 10 seconds). Recordings are in the Blink app.":"Live video opens Home Assistant's player. On the battery doorbell, live view uses battery. Recordings are in the Ring app."}</p>
+  <h3>Recent activity</h3>
+  ${h===undefined?`<p class="meta">Loading…</p>`:h===null?`<p class="meta">Couldn't load the history.</p>`:!h.length?`<p class="meta">No motion or doorbell activity in the last 7 days.</p>`:
+    Object.entries(byDay).map(([d,L])=>`<div class="day">${d}</div>`+L.map(e=>`<div class="evt"><span class="time">${e.t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}</span><span>${icon(e.k)} ${e.k}</span><span class="who">${ago(e.t)}</span></div>`).join("")).join("")}`}
 const views={
   settings(){
     sub(`${me.name}'s profile`);
@@ -966,13 +1025,15 @@ const views={
   },
 
   cameras(){
-    const C=cams();sub(`${C.length} cameras · snapshots refresh every few seconds`);
+    const C=cams();
+    if(camOpen&&HA[camOpen])return camViewer(HA[camOpen]);camOpen=null;
+    sub(`${C.length} cameras · tap one to open it`);
     const sw=dom("switch").filter(s=>/motion_detection/.test(s.entity_id));
     const b=blinkAlarm();
-    return note("Live snapshots from Ring and Blink. For two-way talk at the door, use the Ring app.","Tip")+
-    `<div class="cams">${C.map(c=>`<div class="cam">${DEMO?"":`<img data-cam="${c.entity_id}" src="${camSrc(c.entity_id)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'" onload="this.style.display=''">`}
-      <span class="tag">${esc(camName(c))}</span><span class="src">${esc(c.state)}</span>${DEMO?`<div class="mid">Snapshot appears here</div>`:""}</div>`).join("")}</div>
-    ${b?`<h3>Blink cameras</h3><div class="chips"><button class="chip ${b.state!=="disarmed"?"on":""}" data-alarm="${b.entity_id}" data-act2="alarm_arm_away">Armed</button><button class="chip ${b.state==="disarmed"?"on":""}" data-alarm="${b.entity_id}" data-act2="alarm_disarm">Disarmed</button></div>`:""}
+    return `<div class="cams">${C.map(c=>{const la=lastActivity(c);return `<button class="cam" data-camopen="${c.entity_id}">${DEMO?"":`<img data-cam="${c.entity_id}" src="${camSrc(c.entity_id)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`}
+      <span class="tag">${esc(camName(c))}</span><span class="src">${isBlinkCam(c)?"Blink":"Ring"}</span>${la?`<span class="last">${esc(la.k)} · ${ago(la.t)}</span>`:""}${DEMO?`<div class="mid">Snapshot appears here</div>`:""}</button>`}).join("")}</div>
+    <div class="row" style="gap:8px;margin-top:12px"><a class="sm-btn" href="ring://" target="_blank" rel="noopener">Open Ring app</a>${b||C.some(isBlinkCam)?`<a class="sm-btn" href="immedia-blink://" target="_blank" rel="noopener">Open Blink app</a>`:""}</div>
+    ${b?`<h3>Blink cameras</h3><div class="chips"><button class="chip ${b.state!=="disarmed"?"on":""}" data-alarm="${b.entity_id}" data-act2="alarm_arm_away">Armed</button><button class="chip ${b.state==="disarmed"?"on":""}" data-alarm="${b.entity_id}" data-act2="alarm_disarm">Disarmed</button></div><p class="meta">Blink only notices motion while armed.</p>`:""}
     ${sw.length?`<h3>Motion alerts</h3><div class="card">${sw.map(s=>`<div class="row" style="padding:6px 0"><span class="name" style="font-size:15px">${esc(nm(s).replace(/\s*(Camera )?motion detection$/i,""))}</span><button class="tog ${s.state==="on"?"on":""}" data-toggle="${s.entity_id}"></button></div>`).join("")}</div>`:""}`;
   },
 
@@ -1070,6 +1131,12 @@ pBody.addEventListener("click",async e=>{
   if(d.act==="switch"){say("switch");showPicker();return}
   if(d.calnav!=null){const n=+d.calnav;if(n===0){const t=new Date();calMonth=new Date(t.getFullYear(),t.getMonth(),1);calSel=ymd(t)}else{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+n,1);calSel=ymd(calMonth)}calCache=null;render();loadCalendar();return}
   if(d.day){calSel=d.day;const x=new Date(d.day+"T00:00");if(x.getMonth()!==calMonth.getMonth()){calMonth=new Date(x.getFullYear(),x.getMonth(),1);calCache=null;render();loadCalendar();return}render();return}
+  if(d.camopen){camOpen=d.camopen;chime(900);render();pBody.scrollTop=0;return}
+  if(d.act==="camBack"){camOpen=null;render();return}
+  if(d.act==="camLive"){chime(900);openLive(d.cam);return}
+  if(d.act==="blinkSnap"){chime(900);t.disabled=true;toast("Asking the camera for a fresh picture…");
+    if(await call("blink","trigger_camera",{entity_id:d.cam})){let n=0;const iv=setInterval(()=>{refreshCams();if(++n>8)clearInterval(iv)},2000)}
+    setTimeout(()=>{t.disabled=false},8000);return}
   if(d.act==="newEvt"){addingEvt=true;render();setTimeout(()=>{const t=document.getElementById("evTitle");t&&t.focus()},50);return}
   if(d.act==="cancelEvt"){addingEvt=false;render();return}
   if(d.act==="saveEvt"){const g=id=>document.getElementById(id);const title=g("evTitle").value.trim(),date=g("evDate").value;let endDate=g("evEndDate").value||date;
@@ -1123,6 +1190,7 @@ pBody.addEventListener("click",async e=>{
     const ok=r?await call("remote",on?"turn_off":"turn_on",{entity_id:r.entity_id}):await call("media_player",on?"turn_off":"turn_on",{entity_id:p.entity_id});
     if(ok){say(on?"tv_off":"tv_on");if(r&&HA[r.entity_id])HA[r.entity_id]={...HA[r.entity_id],state:on?"off":"on"};render();refresh()}return}
   if(d.tv==="play"&&r&&tvKeys()==="vizio"){chime(900);window._tvPaused=!window._tvPaused;call("remote","send_command",{entity_id:r.entity_id,command:window._tvPaused?"pause":"play"});return}
+  if(d.tv==="vol+"||d.tv==="vol-"){if(!t._held){chime(900);tvVolStep(d.tv==="vol+"?1:-1)}return}
   if(d.tv==="mute"&&r&&tvKeys()==="vizio"){chime(900);call("remote","send_command",{entity_id:r.entity_id,command:"mute_toggle"});return}
   if(d.tv==="play"&&r&&tvKeys()==="android"){chime(900);call("remote","send_command",{entity_id:r.entity_id,command:"MEDIA_PLAY_PAUSE"});return}
   if(d.tv&&p){chime(900);
