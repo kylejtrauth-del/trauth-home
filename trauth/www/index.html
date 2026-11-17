@@ -363,7 +363,7 @@ const PHRASES={
   light_on:["{room} lights on.","Certainly. {room}, on.","Let there be light. {room}."],
   light_off:["{room} lights off.","{room}, off.","Very good. {room} lights off."],
   "scene_all-on":["Every light in the house, on.","All lights on. Rather bright, isn't it?"],
-  "scene_movie":["Movie mode. Lights to half. Enjoy the film.","Lights dimmed for the pictures. Popcorn's on you."],
+  "scene_pct":["All lights to {pct} percent.","Lights at {pct} percent, as requested."],
   "scene_all-off":["All lights off.","Lights out. Goodnight, house."],
   scene_evening:["Evening lighting. Very civilised.","Evening scene. Do put your feet up."],
   scene_movie:["Movie mode. Lights down. Popcorn is your department.","Lights dimmed for the film. Enjoy."],
@@ -459,7 +459,7 @@ let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=set
    web page), the app runs in DEMO mode with Kyle's devices
    mocked so everything can still be clicked through.
    ========================================================= */
-const APP_VERSION="1.3.2";
+const APP_VERSION="1.3.3";
 const API="api/";
 let DEMO=false, ONLINE=true, HA={}, haUser=null;
 let appData={},renaming=null;
@@ -1006,7 +1006,7 @@ const views={
   lights(){
     const L=lightEnts();sub(L.length?`${L.filter(x=>x.state==="on").length} of ${L.length} on`:"Nothing connected yet");
     if(!L.length)return note("No smart lights or plugs are connected yet. When you add smart switches or plugs in Home Assistant, they'll show up here automatically — no app update needed.");
-    return `<div class="chips" style="margin-bottom:6px"><button class="chip" data-lights="movie">🎬 Movie</button><button class="chip" data-lights="on">All on</button><button class="chip" data-lights="off">All off</button></div><h3>Devices</h3>`+
+    return `<div class="chips" style="margin-bottom:6px">${[25,50,75,100].map(v=>`<button class="chip" data-lightpct="${v}">${v}%</button>`).join("")}<button class="chip" data-lights="on">All on</button><button class="chip" data-lights="off">All off</button></div><h3>Devices</h3>`+
       L.map(l=>{const on=l.state==="on",br=l.attributes.brightness;return `<div class="card"><div class="row"><div>${renaming===l.entity_id?`<div class="row" style="gap:6px"><input class="field" id="renameIn" value="${esc(nm(l))}" maxlength="40" style="flex:1;padding:6px 10px"><button class="sm-btn" data-act="renameSave" data-ent="${l.entity_id}">Save</button></div>`:`<div class="name">${esc(nm(l))} <button class="iconbtn" data-act="rename" data-ent="${l.entity_id}" aria-label="Rename" style="background:none;border:0;color:var(--muted);cursor:pointer;font-size:13px">✏️</button></div>`}<div class="meta">${!live(l)?"Offline":on?(br!=null?Math.round(br/2.55)+"% brightness":"On"):"Off"}</div></div>
       <button class="tog ${on?"on":""}" data-toggle="${l.entity_id}"></button></div>
       ${on&&br!=null?`<input type="range" min="5" max="100" value="${Math.round(br/2.55)}" data-dim="${l.entity_id}">`:""}</div>`}).join("");
@@ -1169,9 +1169,9 @@ pBody.addEventListener("click",async e=>{
   if(d.act==="rename"){renaming=d.ent;render();setTimeout(()=>{const i=document.getElementById("renameIn");if(i){i.focus();i.select()}},50);return}
   if(d.act==="renameSave"){const v=(document.getElementById("renameIn")||{}).value;const x=HA[d.ent];appData.names=appData.names||{};
     if(v&&v.trim()&&x&&v.trim()!==haName(x))appData.names[d.ent]=v.trim();else delete appData.names[d.ent];renaming=null;persist();chime(800);render();return}
-  if(d.lights==="movie"){chime(900);for(const l of lightEnts()){const dim=l.entity_id.startsWith("light.")&&(l.attributes.brightness!=null||(l.attributes.supported_color_modes||[]).some(m=>m!=="onoff"));
-      await call(l.entity_id.split(".")[0],"turn_on",dim?{entity_id:l.entity_id,brightness_pct:50}:{entity_id:l.entity_id})}
-    say("scene_movie");return}
+  if(d.lightpct){const pct=+d.lightpct;chime(900);for(const l of lightEnts()){const dim=l.entity_id.startsWith("light.")&&(l.attributes.brightness!=null||(l.attributes.supported_color_modes||[]).some(m=>m!=="onoff"));
+      await call(l.entity_id.split(".")[0],"turn_on",dim?{entity_id:l.entity_id,brightness_pct:pct}:{entity_id:l.entity_id})}
+    say("scene_pct",{pct});return}
   if(d.lights){const L=lightEnts();for(const l of L)await call(l.entity_id.split(".")[0],d.lights==="on"?"turn_on":"turn_off",{entity_id:l.entity_id});say(d.lights==="on"?"scene_all-on":"scene_all-off");return}
   /* climate */
   const c=climateE();
