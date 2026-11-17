@@ -363,6 +363,7 @@ const PHRASES={
   light_on:["{room} lights on.","Certainly. {room}, on.","Let there be light. {room}."],
   light_off:["{room} lights off.","{room}, off.","Very good. {room} lights off."],
   "scene_all-on":["Every light in the house, on.","All lights on. Rather bright, isn't it?"],
+  "scene_movie":["Movie mode. Lights to half. Enjoy the film.","Lights dimmed for the pictures. Popcorn's on you."],
   "scene_all-off":["All lights off.","Lights out. Goodnight, house."],
   scene_evening:["Evening lighting. Very civilised.","Evening scene. Do put your feet up."],
   scene_movie:["Movie mode. Lights down. Popcorn is your department.","Lights dimmed for the film. Enjoy."],
@@ -458,10 +459,10 @@ let sayTimer;function sayLater(key,v,ms=700){clearTimeout(sayTimer);sayTimer=set
    web page), the app runs in DEMO mode with Kyle's devices
    mocked so everything can still be clicked through.
    ========================================================= */
-const APP_VERSION="1.3.1";
+const APP_VERSION="1.3.2";
 const API="api/";
 let DEMO=false, ONLINE=true, HA={}, haUser=null;
-let appData={};
+let appData={},renaming=null;
 let saveTimer=null;
 
 /* ---------- Extra phrases for real devices ---------- */
@@ -495,7 +496,8 @@ Object.assign(PHRASES.cheeky,{
 /* ---------- Entity discovery ---------- */
 const all=()=>Object.values(HA);
 const dom=d=>all().filter(s=>s.entity_id.startsWith(d+"."));
-const nm=s=>String((s.attributes&&s.attributes.friendly_name)||s.entity_id).trim();
+const nm=s=>String((typeof appData==="object"&&appData&&appData.names&&appData.names[s.entity_id])||(s.attributes&&s.attributes.friendly_name)||s.entity_id).trim();
+const haName=s=>String((s.attributes&&s.attributes.friendly_name)||s.entity_id).trim();
 const live=s=>s&&s.state!=="unavailable"&&s.state!=="unknown";
 const num=v=>{const n=parseFloat(v);return isNaN(n)?null:n};
 const r0=v=>v==null?"--":Math.round(v);
@@ -604,7 +606,7 @@ async function call(domain,service,payload){
 function persist(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
-    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvKeys:appData.tvKeys||null,ignored:appData.ignored||[]};
+    const payload={profiles,tasks:appData.tasks,houseNotes:appData.houseNotes||"",tvKeys:appData.tvKeys||null,ignored:appData.ignored||[],names:appData.names||{}};
     if(DEMO){try{localStorage.setItem("trauth.demo",JSON.stringify(payload))}catch(e){};return}
     try{
       /* only this device's profile is written; everyone else's comes fresh from the Green */
@@ -994,6 +996,8 @@ const views={
     <div class="card">${me.order.map(id=>modules.find(m=>m.id===id)).map(m=>`<div class="row" style="padding:7px 0"><div class="name" style="font-size:15px">${m.label}</div><button class="tog ${me.hidden.includes(m.id)?"":"on"}" data-orb="${m.id}" aria-label="Show ${m.label}"></button></div>`).join("")}
       <div style="margin-top:10px"><button class="sm-btn" data-act="resetOrder">Reset orb order</button></div></div>
     <div style="margin-top:26px;display:grid;gap:10px"><button class="big-btn" data-act="switch">Switch profile</button></div>
+    ${(()=>{const A=dom("automation");if(!A.length)return "";return `<h3>Automations</h3><div class="card">${A.map(a=>{const lt=a.attributes.last_triggered;
+      return `<div class="row" style="padding:7px 0;gap:8px"><div style="flex:1;min-width:0"><div class="name" style="font-size:15px">${esc(nm(a).replace(/^T\.?R\.?A\.?U\.?T\.?H\.?\s*[–-]\s*/i,""))}</div><div class="meta">${!live(a)?"Unavailable":a.state==="on"?"On":"Off"} · ${lt?"last ran "+ago(new Date(lt)):"hasn't run yet"}</div></div><button class="sm-btn" data-act="runAuto" data-ent="${a.entity_id}" style="padding:6px 10px">Run</button><button class="tog ${a.state==="on"?"on":""}" data-toggle="${a.entity_id}"></button></div>`}).join("")}</div><p class="meta">Shared by the whole house. Tap Run to test one right now.</p>`})()}
     <h3>App</h3>
     <div class="card"><div class="row"><div><div class="name">Version ${APP_VERSION}</div><div class="meta">Updates download automatically from GitHub</div></div><button class="sm-btn" data-act="checkUpdate">Check now</button></div></div>
     <p class="meta" style="margin-top:18px">${DEMO?"Demo mode — not connected to Home Assistant.":`Connected to Home Assistant${haUser&&haUser.display?" as "+esc(haUser.display):""}. Settings are saved on the Green.`}</p>`;
@@ -1002,8 +1006,8 @@ const views={
   lights(){
     const L=lightEnts();sub(L.length?`${L.filter(x=>x.state==="on").length} of ${L.length} on`:"Nothing connected yet");
     if(!L.length)return note("No smart lights or plugs are connected yet. When you add smart switches or plugs in Home Assistant, they'll show up here automatically — no app update needed.");
-    return `<div class="chips" style="margin-bottom:6px"><button class="chip" data-lights="on">All on</button><button class="chip" data-lights="off">All off</button></div><h3>Devices</h3>`+
-      L.map(l=>{const on=l.state==="on",br=l.attributes.brightness;return `<div class="card"><div class="row"><div><div class="name">${esc(nm(l))}</div><div class="meta">${!live(l)?"Offline":on?(br!=null?Math.round(br/2.55)+"% brightness":"On"):"Off"}</div></div>
+    return `<div class="chips" style="margin-bottom:6px"><button class="chip" data-lights="movie">🎬 Movie</button><button class="chip" data-lights="on">All on</button><button class="chip" data-lights="off">All off</button></div><h3>Devices</h3>`+
+      L.map(l=>{const on=l.state==="on",br=l.attributes.brightness;return `<div class="card"><div class="row"><div>${renaming===l.entity_id?`<div class="row" style="gap:6px"><input class="field" id="renameIn" value="${esc(nm(l))}" maxlength="40" style="flex:1;padding:6px 10px"><button class="sm-btn" data-act="renameSave" data-ent="${l.entity_id}">Save</button></div>`:`<div class="name">${esc(nm(l))} <button class="iconbtn" data-act="rename" data-ent="${l.entity_id}" aria-label="Rename" style="background:none;border:0;color:var(--muted);cursor:pointer;font-size:13px">✏️</button></div>`}<div class="meta">${!live(l)?"Offline":on?(br!=null?Math.round(br/2.55)+"% brightness":"On"):"Off"}</div></div>
       <button class="tog ${on?"on":""}" data-toggle="${l.entity_id}"></button></div>
       ${on&&br!=null?`<input type="range" min="5" max="100" value="${Math.round(br/2.55)}" data-dim="${l.entity_id}">`:""}</div>`}).join("");
   },
@@ -1159,7 +1163,15 @@ pBody.addEventListener("click",async e=>{
   if(d.toggle){const ent=HA[d.toggle];const was=ent&&ent.state==="on";chime(was?550:990);
     const ok=await call(d.toggle.split(".")[0],"toggle",{entity_id:d.toggle});
     if(ok&&d.toggle.startsWith("switch.")&&/motion_detection/.test(d.toggle))say(was?"cam_motion_off":"cam_motion_on",{cam:nm(ent).replace(/\s*(Camera )?motion detection$/i,"")});
+    else if(ok&&d.toggle.startsWith("automation."))toast(`${nm(ent)} ${was?"off":"on"}`);
     else if(ok)say(was?"light_off":"light_on",{room:nm(ent)});return}
+  if(d.act==="runAuto"){chime(900);if(await call("automation","trigger",{entity_id:d.ent}))toast("Ran "+nm(HA[d.ent]||{entity_id:d.ent}));return}
+  if(d.act==="rename"){renaming=d.ent;render();setTimeout(()=>{const i=document.getElementById("renameIn");if(i){i.focus();i.select()}},50);return}
+  if(d.act==="renameSave"){const v=(document.getElementById("renameIn")||{}).value;const x=HA[d.ent];appData.names=appData.names||{};
+    if(v&&v.trim()&&x&&v.trim()!==haName(x))appData.names[d.ent]=v.trim();else delete appData.names[d.ent];renaming=null;persist();chime(800);render();return}
+  if(d.lights==="movie"){chime(900);for(const l of lightEnts()){const dim=l.entity_id.startsWith("light.")&&(l.attributes.brightness!=null||(l.attributes.supported_color_modes||[]).some(m=>m!=="onoff"));
+      await call(l.entity_id.split(".")[0],"turn_on",dim?{entity_id:l.entity_id,brightness_pct:50}:{entity_id:l.entity_id})}
+    say("scene_movie");return}
   if(d.lights){const L=lightEnts();for(const l of L)await call(l.entity_id.split(".")[0],d.lights==="on"?"turn_on":"turn_off",{entity_id:l.entity_id});say(d.lights==="on"?"scene_all-on":"scene_all-off");return}
   /* climate */
   const c=climateE();
@@ -1237,7 +1249,11 @@ async function boot(){
   normalizeProfiles();
   if(Array.isArray(saved.calOn))Object.values(profiles).forEach(p=>{if(!Array.isArray(p.calOn))p.calOn=[...saved.calOn]});
   appData={tasks:Array.isArray(saved.tasks)?saved.tasks:JSON.parse(JSON.stringify(DEFAULT_TASKS)),houseNotes:saved.houseNotes||"",tvKeys:saved.tvKeys||null,showAllApps:!!saved.showAllApps,
-    ignored:Array.isArray(saved.ignored)?saved.ignored:Object.keys(HA).filter(id=>DEFAULT_IGNORED_RE.test(id))};
+    ignored:Array.isArray(saved.ignored)?saved.ignored:Object.keys(HA).filter(id=>DEFAULT_IGNORED_RE.test(id)),
+    names:saved.names&&typeof saved.names==="object"?saved.names:null};
+  /* first run with lights: Light 1 = Island (Kitchen), Light 2 = Ceiling (Kitchen) */
+  if(!appData.names){const n={};lightEnts().forEach(l=>{const h=haName(l);if(/(^|\D)1$/.test(h))n[l.entity_id]="Island (Kitchen)";else if(/(^|\D)2$/.test(h))n[l.entity_id]="Ceiling (Kitchen)"});
+    if(Object.keys(n).length){appData.names=n;persist()}else appData.names={}}
   const who=haUser&&(haUser.display||haUser.name||"").toLowerCase();
   const match=who&&Object.values(profiles).find(p=>who.startsWith(p.name.toLowerCase())||who.startsWith(p.id));
   if(match)selectProfile(match.id);else showPicker();
